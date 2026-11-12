@@ -511,6 +511,7 @@ class AutomationWorker:
         """
         Deletes ALL pre-existing listings on https://www.avanture.net/classifieds/manage
         in a continuous loop until 0 listings remain on the account.
+        Strictly triggers 'Delete listing' and NEVER clicks 'View listing'.
         """
         if self.is_stopped:
             return False
@@ -558,12 +559,9 @@ class AutomationWorker:
                     count = 0;
                 }
 
-                const firstViewHref = viewLinks.length > 0 ? viewLinks[0].getAttribute('href') : null;
-
                 return {
                     count: count,
-                    hasEmptyMsg: hasEmptyMsg,
-                    firstViewHref: firstViewHref
+                    hasEmptyMsg: hasEmptyMsg
                 };
             }''')
 
@@ -576,11 +574,11 @@ class AutomationWorker:
                     self.log("No existing listings found to remove. Slot is ready!", "INFO")
                 return True
 
-            self.log(f"⚠️ Detected {count} existing listing(s) on account. Deleting listing #{attempt}...", "WARNING")
+            self.log(f"⚠️ Detected {count} existing listing(s) on account. Deleting listing #{attempt} of {count}...", "WARNING")
             confirmed = False
 
             # -------------------------------------------------------------
-            # STEP 1: Open 3-dot dropdown menu on the first listing card
+            # STEP 1: Open 3-dot dropdown menu on the listing card
             # -------------------------------------------------------------
             opened_menu = page.evaluate('''() => {
                 const btn = document.querySelector('[data-pa-menu]');
@@ -597,8 +595,8 @@ class AutomationWorker:
             }''')
 
             if not opened_menu:
-                # Try Playwright locator for 3-dots
-                for m_sel in ["[data-pa-menu]", "button:has-text('⋯')", "button:has-text('...')", ".pa-menu button"]:
+                # Try Playwright locator for [data-pa-menu]
+                for m_sel in ["[data-pa-menu]", ".pa-menu button", "button:has-text('⋯')", "button:has-text('...')"]:
                     try:
                         m_loc = page.locator(m_sel).first
                         if m_loc.is_visible(timeout=500):
@@ -613,59 +611,84 @@ class AutomationWorker:
 
             # -------------------------------------------------------------
             # STEP 2: Click the 'Delete listing' / 'Izbriši oglas' action
+            # STRICT RULE: NEVER CLICK 'View listing' / 'Ogled oglasa'!
             # -------------------------------------------------------------
             clicked_delete = page.evaluate('''() => {
-                const candidates = Array.from(document.querySelectorAll('.pa-menu.is-open a, .pa-menu a, [data-pa-menu] ~ * a, a, button'));
-                for (const el of candidates) {
-                    const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
-                    const href = (el.getAttribute('href') || '').toLowerCase();
-                    const onclick = (el.getAttribute('onclick') || '').toLowerCase();
-                    if (
-                        txt.includes('delete listing') ||
-                        txt.includes('izbriši oglas') ||
-                        txt.includes('izbrisi oglas') ||
-                        txt === 'delete' ||
-                        txt === 'izbriši' ||
-                        txt === 'izbrisi' ||
-                        (href.includes('delete') && !href.includes('account')) ||
-                        onclick.includes('delete') ||
-                        onclick.includes('ajaxobjectconfirmdelete')
-                    ) {
-                        el.scrollIntoView({ block: 'center' });
-                        el.click();
-                        return true;
+                const openMenus = Array.from(document.querySelectorAll('.pa-menu.is-open, .pa-menu'));
+                for (const menu of openMenus) {
+                    const links = Array.from(menu.querySelectorAll('a, button, [role="menuitem"], li, span'));
+                    
+                    // 1. Look for explicit delete text or attribute
+                    for (const el of links) {
+                        const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                        const href = (el.getAttribute('href') || '').toLowerCase();
+                        const onclick = (el.getAttribute('onclick') || '').toLowerCase();
+                        const cls = (el.className || '').toLowerCase();
+
+                        // SKIP VIEW ACTIONS ENTIRELY
+                        if (txt.includes('view') || txt.includes('ogled') || txt.includes('poglej') || href.includes('/view/')) {
+                            continue;
+                        }
+
+                        if (
+                            txt.includes('delete') ||
+                            txt.includes('izbri') ||
+                            txt.includes('odstran') ||
+                            (href.includes('delete') && !href.includes('account')) ||
+                            onclick.includes('delete') ||
+                            onclick.includes('ajaxobjectconfirmdelete') ||
+                            cls.includes('danger')
+                        ) {
+                            el.scrollIntoView({ block: 'center' });
+                            el.click();
+                            return { clicked: true, method: 'matched_delete_text', text: txt };
+                        }
+                    }
+
+                    // 2. Fallback: In .pa-menu, item 1 is View, item 2 (last) is Delete!
+                    const aElements = Array.from(menu.querySelectorAll('a'));
+                    const deleteCandidates = aElements.filter(a => {
+                        const t = (a.innerText || a.textContent || '').toLowerCase();
+                        const h = (a.getAttribute('href') || '').toLowerCase();
+                        return !t.includes('view') && !t.includes('ogled') && !h.includes('/view/');
+                    });
+                    if (deleteCandidates.length > 0) {
+                        const target = deleteCandidates[deleteCandidates.length - 1];
+                        target.scrollIntoView({ block: 'center' });
+                        target.click();
+                        return { clicked: true, method: 'last_non_view_link', text: target.innerText };
                     }
                 }
-                return false;
+                return { clicked: false };
             }''')
 
-            if not clicked_delete:
+            if not clicked_delete or not clicked_delete.get("clicked"):
+                # Playwright exact delete selectors (strictly excluding 'view')
                 for del_sel in [
                     "a:has-text('Delete listing'):visible",
                     "button:has-text('Delete listing'):visible",
                     "a:has-text('Izbriši oglas'):visible",
                     "button:has-text('Izbriši oglas'):visible",
                     "a:has-text('Izbriši'):visible",
+                    "button:has-text('Izbriši'):visible",
                     "a:has-text('Delete'):visible",
-                    ".pa-menu.is-open a",
-                    "a[href*='delete']:visible"
+                    ".pa-menu.is-open a[href*='delete']:visible"
                 ]:
                     try:
                         d_loc = page.locator(del_sel).first
                         if d_loc.is_visible(timeout=400):
                             d_loc.click()
-                            clicked_delete = True
                             self.sleep(0.8)
                             break
                     except Exception:
                         pass
 
             # -------------------------------------------------------------
-            # STEP 3: Confirm Modal ("Are you sure you want to delete?")
+            # STEP 3: Confirm Modal ("Are you sure you want to delete this listing?")
             # Button is 'Continue' / 'Nadaljuj'
             # -------------------------------------------------------------
             self.sleep(0.8)
-            for _ in range(10):
+            for _ in range(12):
                 if self.is_stopped:
                     return False
                 for c_sel in [
@@ -676,8 +699,6 @@ class AutomationWorker:
                     "[role='button']:has-text('Continue'):visible",
                     ".modal button:has-text('Continue'):visible",
                     ".modal button:has-text('Nadaljuj'):visible",
-                    "button:has-text('Potrdi'):visible",
-                    "button:has-text('Delete'):visible",
                     "button.btn-danger:visible"
                 ]:
                     try:
@@ -686,20 +707,22 @@ class AutomationWorker:
                             self.log(f"Confirming deletion popup ({c_sel})...", "INFO")
                             c_loc.click()
                             confirmed = True
-                            self.sleep(2.0)
+                            self.sleep(2.5)
                             break
                     except Exception:
                         pass
                 if confirmed:
                     break
 
-                # JS click fallback for modal
+                # JS click fallback for modal 'Continue'
                 try:
                     js_confirmed = page.evaluate('''() => {
                         const btns = Array.from(document.querySelectorAll('button, a, [role="button"], input[type="button"], input[type="submit"]'));
                         for (const b of btns) {
                             const txt = (b.innerText || b.textContent || b.value || '').trim().toLowerCase();
+                            if (txt.includes('cancel') || txt.includes('prekli')) continue;
                             if (txt === 'continue' || txt === 'nadaljuj' || txt === 'potrdi' || txt === 'yes') {
+                                b.scrollIntoView({ block: 'center' });
                                 b.click();
                                 return true;
                             }
@@ -709,84 +732,16 @@ class AutomationWorker:
                     if js_confirmed:
                         self.log("Confirmed deletion popup via JS ('Continue').", "INFO")
                         confirmed = True
-                        self.sleep(2.0)
+                        self.sleep(2.5)
                         break
                 except Exception:
                     pass
 
                 self.sleep(0.3)
 
-            # -------------------------------------------------------------
-            # STEP 4: Fallback - Open listing view page directly and delete
-            # -------------------------------------------------------------
-            if not confirmed and info.get("firstViewHref"):
-                view_href = info.get("firstViewHref")
-                full_view_url = view_href if view_href.startswith("http") else f"https://www.avanture.net{view_href}"
-                self.log(f"Opening listing view page to delete directly: {full_view_url}...", "INFO")
-                page.goto(full_view_url, wait_until="domcontentloaded")
-                self.sleep(2.0)
-
-                # Click Delete listing on view page
-                page.evaluate('''() => {
-                    const candidates = Array.from(document.querySelectorAll('a, button, [role="button"]'));
-                    for (const el of candidates) {
-                        const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
-                        const href = (el.getAttribute('href') || '').toLowerCase();
-                        if (
-                            txt.includes('delete listing') ||
-                            txt.includes('izbriši oglas') ||
-                            txt.includes('izbrisi oglas') ||
-                            (txt.includes('delete') && !txt.includes('account')) ||
-                            (txt.includes('izbriši') && !txt.includes('račun')) ||
-                            href.includes('delete')
-                        ) {
-                            el.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                }''')
-                self.sleep(1.0)
-
-                # Confirm modal on view page
-                for c_sel in [
-                    "button:has-text('Continue'):visible",
-                    "button:has-text('Nadaljuj'):visible",
-                    "button:has-text('Delete'):visible",
-                    "button:has-text('Izbriši'):visible",
-                    "button.btn-danger:visible"
-                ]:
-                    try:
-                        c_loc = page.locator(c_sel).first
-                        if c_loc.is_visible(timeout=600):
-                            c_loc.click()
-                            confirmed = True
-                            self.sleep(2.0)
-                            break
-                    except Exception:
-                        pass
-
-                if not confirmed:
-                    try:
-                        js_c = page.evaluate('''() => {
-                            const btns = Array.from(document.querySelectorAll('button, a, [role="button"]'));
-                            for (const b of btns) {
-                                const txt = (b.innerText || b.textContent || b.value || '').trim().toLowerCase();
-                                if (txt === 'continue' || txt === 'nadaljuj' || txt === 'potrdi' || txt === 'yes') {
-                                    b.click();
-                                    return true;
-                                }
-                            }
-                            return false;
-                        }''')
-                        if js_c:
-                            confirmed = True
-                            self.sleep(2.0)
-                    except Exception:
-                        pass
-
             deleted_any = True
             self.sleep(1.5)
+            # Reload manage page to verify deletion and handle next listing
             page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
             self.sleep(1.5)
 
