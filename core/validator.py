@@ -12,20 +12,28 @@ class ListingValidator:
         """Resolves an image/attachment path from absolute, relative, or data/images folder."""
         if not raw_val or pd.isna(raw_val):
             return None
-        val_str = str(raw_val).strip()
+        val_str = str(raw_val).strip().strip('"').strip("'")
         if not val_str:
             return None
 
+        p_name = Path(val_str).name
         candidates = [
             Path(val_str),
+            IMAGES_DIR / p_name,
+            DATA_DIR / "images" / p_name,
+            DATA_DIR / p_name,
+            BASE_DIR / p_name,
             BASE_DIR / val_str,
             DATA_DIR / val_str,
             IMAGES_DIR / val_str,
             DATA_DIR / "images" / val_str
         ]
         for c in candidates:
-            if c.exists() and c.is_file():
-                return c.resolve()
+            try:
+                if c and c.exists() and c.is_file():
+                    return c.resolve()
+            except Exception:
+                pass
         return None
 
     @staticmethod

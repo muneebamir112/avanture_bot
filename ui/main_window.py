@@ -279,14 +279,17 @@ class DashboardView(ctk.CTkFrame):
             corner_radius=12
         )
         action_card.grid(row=0, column=0, pady=(0, 10), sticky="ew")
-        action_card.grid_columnconfigure(3, weight=1)
+
+        # Row 0: Action Buttons, Headless toggle & Progress Bar
+        row0 = ctk.CTkFrame(action_card, fg_color="transparent")
+        row0.pack(fill="x", padx=16, pady=(12, 8))
 
         # Start button
         self.start_btn = ctk.CTkButton(
-            action_card,
+            row0,
             text="🚀 START AUTOMATION",
-            height=44,
-            width=230,
+            height=42,
+            width=210,
             corner_radius=8,
             fg_color="#10b981",
             hover_color="#059669",
@@ -294,13 +297,13 @@ class DashboardView(ctk.CTkFrame):
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
             command=self._on_click_start
         )
-        self.start_btn.grid(row=0, column=0, padx=(16, 10), pady=14)
+        self.start_btn.pack(side="left", padx=(0, 10))
 
         # Stop button
         self.stop_btn = ctk.CTkButton(
-            action_card,
+            row0,
             text="⏹ Stop",
-            height=44,
+            height=42,
             width=85,
             corner_radius=8,
             fg_color="#ef4444",
@@ -310,36 +313,26 @@ class DashboardView(ctk.CTkFrame):
             state="disabled",
             command=self._on_click_stop
         )
-        self.stop_btn.grid(row=0, column=1, padx=(0, 14), pady=14)
+        self.stop_btn.pack(side="left", padx=(0, 14))
 
         # Headless checkbox
         self.headless_var = ctk.BooleanVar(value=False)
         self.headless_chk = ctk.CTkCheckBox(
-            action_card,
+            row0,
             text="Silent (Headless)",
             variable=self.headless_var,
             font=ctk.CTkFont(family="Segoe UI", size=11),
             text_color="#94a3b8"
         )
-        self.headless_chk.grid(row=0, column=2, padx=(0, 14), pady=14)
+        self.headless_chk.pack(side="left", padx=(0, 16))
 
-        # Status summary label
-        self.runner_summary_lbl = ctk.CTkLabel(
-            action_card,
-            text="Accounts Ready: 0 | Sequential Rotation: Account 1 → 2 → 3",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color="#94a3b8",
-            anchor="w"
-        )
-        self.runner_summary_lbl.grid(row=0, column=3, padx=10, pady=14, sticky="ew")
-
-        # Progress block
-        progress_box = ctk.CTkFrame(action_card, fg_color="transparent")
-        progress_box.grid(row=0, column=4, padx=(10, 16), pady=14, sticky="e")
+        # Progress block (Right aligned)
+        progress_box = ctk.CTkFrame(row0, fg_color="transparent")
+        progress_box.pack(side="right")
 
         self.progress_bar = ctk.CTkProgressBar(
             progress_box,
-            width=200,
+            width=220,
             height=12,
             corner_radius=6,
             fg_color="#1e293b",
@@ -353,9 +346,93 @@ class DashboardView(ctk.CTkFrame):
             text="0 / 0 (0%)",
             font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
             text_color="#cbd5e1",
-            width=80
+            width=85
         )
         self.progress_lbl.pack(side="left")
+
+        # Row 1: Dedicated Cycle & Auto-Stop Timer Configuration Bar
+        row1 = ctk.CTkFrame(action_card, fg_color="#0d1526", corner_radius=8, border_width=1, border_color="#1e293b")
+        row1.pack(fill="x", padx=16, pady=(0, 12))
+
+        # Re-posting delay setting
+        relist_box = ctk.CTkFrame(row1, fg_color="transparent")
+        relist_box.pack(side="left", padx=(12, 6), pady=6)
+
+        relist_lbl = ctk.CTkLabel(
+            relist_box,
+            text="🔄 Re-Post Delay:",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color="#38bdf8"
+        )
+        relist_lbl.pack(side="left", padx=(0, 6))
+
+        self.relist_entry = ctk.CTkEntry(
+            relist_box,
+            width=50,
+            height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            justify="center"
+        )
+        self.relist_entry.insert(0, "15")
+        self.relist_entry.pack(side="left", padx=(0, 6))
+
+        self.relist_unit_var = ctk.StringVar(value="Minutes")
+        self.relist_unit_menu = ctk.CTkOptionMenu(
+            relist_box,
+            values=["Minutes", "Hours", "Seconds"],
+            variable=self.relist_unit_var,
+            width=90,
+            height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=10)
+        )
+        self.relist_unit_menu.pack(side="left", padx=(0, 12))
+
+        # Divider
+        ctk.CTkLabel(row1, text="|", font=ctk.CTkFont(size=14), text_color="#334155").pack(side="left", padx=4)
+
+        # Auto-Stop timer setting
+        autostop_box = ctk.CTkFrame(row1, fg_color="transparent")
+        autostop_box.pack(side="left", padx=(12, 6), pady=6)
+
+        self.auto_stop_enabled_var = ctk.BooleanVar(value=False)
+        self.auto_stop_chk = ctk.CTkCheckBox(
+            autostop_box,
+            text="Auto-Stop Timer:",
+            variable=self.auto_stop_enabled_var,
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color="#f59e0b"
+        )
+        self.auto_stop_chk.pack(side="left", padx=(0, 6))
+
+        self.autostop_entry = ctk.CTkEntry(
+            autostop_box,
+            width=50,
+            height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            justify="center"
+        )
+        self.autostop_entry.insert(0, "8")
+        self.autostop_entry.pack(side="left", padx=(0, 6))
+
+        self.autostop_unit_var = ctk.StringVar(value="Hours")
+        self.autostop_unit_menu = ctk.CTkOptionMenu(
+            autostop_box,
+            values=["Hours", "Minutes"],
+            variable=self.autostop_unit_var,
+            width=85,
+            height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=10)
+        )
+        self.autostop_unit_menu.pack(side="left")
+
+        # Live status summary label
+        self.runner_summary_lbl = ctk.CTkLabel(
+            row1,
+            text="Mode: Non-Stop Auto-Cycle | Delete old ad → Post fresh ad",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color="#94a3b8"
+        )
+        self.runner_summary_lbl.pack(side="right", padx=14)
 
         # 2. Real-Time Audit Console (Full height)
         log_card = ctk.CTkFrame(
@@ -1580,11 +1657,22 @@ class DashboardView(ctk.CTkFrame):
         if not path:
             return
 
+        # Ensure image is copied locally to data/images/ for permanent portability
+        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        filename = Path(path).name
+        target_file = IMAGES_DIR / filename
+        try:
+            shutil.copy2(path, target_file)
+            saved_path = str(target_file.resolve())
+        except Exception:
+            saved_path = path
+
         if 0 <= self.current_profile_index < len(self.profiles_list):
-            self.profiles_list[self.current_profile_index]["image_path"] = path
-            self.lbl_pic.configure(text=f"Attached: {Path(path).name}", text_color="#38bdf8")
+            self.profiles_list[self.current_profile_index]["image_path"] = saved_path
+            self.lbl_pic.configure(text=f"Attached: {filename}", text_color="#38bdf8")
             self._save_current_account_form(silent=True)
-            self.log(f"Image attached: {Path(path).name}", "SUCCESS")
+            AvantureCredentialsStore.save(self.profiles_list)
+            self.log(f"Image attached and cached locally: {filename}", "SUCCESS")
 
     def _on_clear_profile_image(self):
         if 0 <= self.current_profile_index < len(self.profiles_list):
@@ -1643,7 +1731,48 @@ class DashboardView(ctk.CTkFrame):
         self.fail_count = 0
         self.progress_lbl.configure(text=f"0 / {self.total_count} (0%)")
 
-        self.log(f"Initiating automation engine for {len(active_profiles)} active profile(s)...", "INFO")
+        # Calculate re-post delay between complete account rounds
+        try:
+            relist_val = float(self.relist_entry.get().strip())
+        except (ValueError, TypeError):
+            relist_val = 15.0
+
+        relist_unit = self.relist_unit_var.get().strip()
+        if relist_unit == "Hours":
+            relist_seconds = max(1.0, relist_val * 3600.0)
+            relist_info = f"{relist_val:g} hr(s)"
+        elif relist_unit == "Seconds":
+            relist_seconds = max(1.0, relist_val * 1.0)
+            relist_info = f"{relist_val:g} sec(s)"
+        else: # Minutes
+            relist_seconds = max(1.0, relist_val * 60.0)
+            relist_info = f"{relist_val:g} min(s)"
+
+        # Calculate Auto-Stop timer limit (if enabled)
+        auto_stop_enabled = bool(self.auto_stop_enabled_var.get())
+        try:
+            autostop_val = float(self.autostop_entry.get().strip())
+        except (ValueError, TypeError):
+            autostop_val = 8.0
+
+        autostop_unit = self.autostop_unit_var.get().strip()
+        if autostop_unit == "Minutes":
+            auto_stop_seconds = max(60.0, autostop_val * 60.0)
+            autostop_info = f"{autostop_val:g} min(s)"
+        else: # Hours
+            auto_stop_seconds = max(60.0, autostop_val * 3600.0)
+            autostop_info = f"{autostop_val:g} hr(s)"
+
+        timer_desc = f"Auto-Stop in {autostop_info}" if auto_stop_enabled else "Non-Stop (Infinite)"
+        self.log(
+            f"Initiating automation engine for {len(active_profiles)} active profile(s) "
+            f"[Cycle Delay: {relist_info} | Schedule: {timer_desc}]...",
+            "INFO"
+        )
+        self.runner_summary_lbl.configure(
+            text=f"Active | Round Interval: {relist_info} | {timer_desc}",
+            text_color="#34d399"
+        )
 
         self.worker = AutomationWorker(
             target_url=DEFAULT_TARGET_URL,
@@ -1653,10 +1782,15 @@ class DashboardView(ctk.CTkFrame):
             headless=self.headless_var.get(),
             auto_delete_old=True,
             delay_between_accounts=5.0,
+            loop_continuous=True,
+            loop_interval_seconds=relist_seconds,
+            auto_stop_enabled=auto_stop_enabled,
+            auto_stop_seconds=auto_stop_seconds,
             on_log=self.log,
             on_progress=self._on_worker_progress,
             on_row_completed=self._on_worker_row_completed,
-            on_finished=self._on_worker_finished
+            on_finished=self._on_worker_finished,
+            on_countdown=self._on_worker_countdown
         )
 
         self.worker_thread = threading.Thread(target=self.worker.run, daemon=True)
@@ -1664,8 +1798,10 @@ class DashboardView(ctk.CTkFrame):
 
     def _on_click_stop(self):
         if self.worker:
-            self.worker.stop()
             self.stop_btn.configure(state="disabled")
+            self.log("Stop requested by user. Terminating browser and automation immediately...", "WARNING")
+            self.worker.stop()
+            self.start_btn.configure(state="normal")
 
     def _on_worker_progress(self, current: int, total: int, pct: float):
         self.after(0, self._update_progress_ui, current, total, pct)
@@ -1680,14 +1816,35 @@ class DashboardView(ctk.CTkFrame):
         else:
             self.fail_count += 1
 
+    def _on_worker_countdown(self, text: str):
+        self.after(0, self._update_countdown_ui, text)
+
+    def _update_countdown_ui(self, text: str):
+        if hasattr(self, "runner_summary_lbl"):
+            if text:
+                self.runner_summary_lbl.configure(text=f"⏳ {text}", text_color="#38bdf8")
+            else:
+                self.runner_summary_lbl.configure(
+                    text="Mode: Non-Stop Auto-Cycle | Delete old ad → Post fresh ad",
+                    text_color="#94a3b8"
+                )
+
     def _on_worker_finished(self, summary: dict):
         self.after(0, self._handle_worker_completion, summary)
 
     def _handle_worker_completion(self, summary: dict):
         self.start_btn.configure(state="normal")
         self.stop_btn.configure(state="disabled")
-        msg = f"Automation completed!\nSuccessful: {summary['success']}\nFailed: {summary['failed']}\nTotal Accounts: {summary['total']}"
-        messagebox.showinfo("Finished", msg)
+        if hasattr(self, "runner_summary_lbl"):
+            self.runner_summary_lbl.configure(
+                text="Mode: Non-Stop Auto-Cycle | Delete old ad → Post fresh ad",
+                text_color="#94a3b8"
+            )
+        if self.worker and self.worker.is_stopped:
+            messagebox.showinfo("Stopped", "Automation was stopped by user or auto-stop schedule.")
+        else:
+            msg = f"Automation completed!\nSuccessful: {summary['success']}\nFailed: {summary['failed']}\nTotal Accounts: {summary['total']}"
+            messagebox.showinfo("Finished", msg)
 
     # ==================================================================
     # LOGGING & AUDIT STREAM

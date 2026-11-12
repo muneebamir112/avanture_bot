@@ -31,10 +31,15 @@ class AutomationWorker:
         default_image_path: str = "",
         auto_delete_old: bool = True,
         delay_between_accounts: float = 5.0,
+        loop_continuous: bool = True,
+        loop_interval_seconds: float = 900.0,
+        auto_stop_enabled: bool = False,
+        auto_stop_seconds: float = 0.0,
         on_log: Optional[Callable[[str, str], None]] = None,
         on_progress: Optional[Callable[[int, int, float], None]] = None,
         on_row_completed: Optional[Callable[[int, bool, str], None]] = None,
         on_finished: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_countdown: Optional[Callable[[str], None]] = None,
     ):
         self.target_url = target_url or "https://www.avanture.net/classifieds"
         self.data_df = data_df.copy() if data_df is not None else pd.DataFrame()
@@ -45,6 +50,11 @@ class AutomationWorker:
         self.default_image_path = default_image_path
         self.auto_delete_old = auto_delete_old
         self.delay_between_accounts = delay_between_accounts
+        self.loop_continuous = loop_continuous
+        self.loop_interval_seconds = max(0.0, float(loop_interval_seconds))
+        self.auto_stop_enabled = auto_stop_enabled
+        self.auto_stop_seconds = max(0.0, float(auto_stop_seconds))
+        self.on_countdown = on_countdown or (lambda msg: None)
 
         self.accounts = [a for a in accounts if a.get("username") and a.get("password")] if accounts else []
         if not self.accounts and username and password:
@@ -64,13 +74,28 @@ class AutomationWorker:
         self.is_stopped = False
         self.session_published_count = 0
         self.published_titles = set()
+        self.browser_context = None
+        self.page = None
+
+    def sleep(self, seconds: float):
+        """Interruptible sleep that yields immediately if stop was requested."""
+        end = time.time() + seconds
+        while time.time() < end:
+            if self.is_stopped:
+                return
+            time.sleep(0.05)
 
     def log(self, message: str, level: str = "INFO"):
         self.on_log(message, level)
 
     def stop(self):
         self.is_stopped = True
-        self.log("Stopping automation process...", "WARNING")
+        self.log("Stopping automation process immediately...", "WARNING")
+        if self.browser_context:
+            try:
+                self.browser_context.close()
+            except Exception:
+                pass
 
     def pause(self):
         self.is_paused = True
@@ -121,144 +146,243 @@ class AutomationWorker:
                 )
                 page = browser_context.new_page()
 
+            self.browser_context = browser_context
+            self.page = page
             page.set_default_timeout(DEFAULT_TIMEOUT_MS)
             current_proxy = self.proxy
 
+            overall_start_time = time.time()
+            auto_stop_seconds = self.auto_stop_seconds if (self.auto_stop_enabled and self.auto_stop_seconds > 0) else None
+            cycle_num = 1
+
+            if auto_stop_seconds:
+                hrs = auto_stop_seconds / 3600.0
+                self.log(f"⏱️ Auto-Stop Timer active: Automation will automatically stop in {hrs:.2f} hours.", "INFO")
+            else:
+                self.log("♾️ Mode: Non-Stop Continuous Execution (will run indefinitely until stopped).", "INFO")
+
             try:
-                # Process each account in sequence
-                for acc_idx, acc in enumerate(active_accounts):
-                    if self.is_stopped:
-                        self.log("Process halted by user.", "WARNING")
+                while not self.is_stopped:
+                    if auto_stop_seconds and (time.time() - overall_start_time) >= auto_stop_seconds:
+                        self.log(f"⏰ Auto-Stop Timer limit reached. Stopping automation.", "WARNING")
                         break
 
-                    while self.is_paused and not self.is_stopped:
-                        time.sleep(0.5)
+                    if self.loop_continuous and cycle_num > 1:
+                        self.log("="*60, "INFO")
+                        self.log(f"🔄 STARTING AUTOMATION CYCLE #{cycle_num} ({total_accounts} accounts)", "INFO")
+                        self.log("="*60, "INFO")
 
-                    if self.is_stopped:
-                        break
+                    # Process each account in sequence
+                    for acc_idx, acc in enumerate(active_accounts):
+                        if self.is_stopped:
+                            self.log("Process halted by user.", "WARNING")
+                            break
 
-                    acc_num = acc_idx + 1
-                    curr_user = acc.get("username", "").strip()
-                    curr_pass = acc.get("password", "").strip()
-                    acc_proxy = acc.get("proxy", "").strip()
+                        if auto_stop_seconds and (time.time() - overall_start_time) >= auto_stop_seconds:
+                            self.log(f"⏰ Auto-Stop Timer limit reached. Stopping automation.", "WARNING")
+                            self.is_stopped = True
+                            break
 
-                    # Dynamic proxy switch if this profile uses a different proxy
-                    if acc_idx > 0 and acc_proxy and acc_proxy != current_proxy:
-                        self.log(f"Switching browser proxy for Account {acc_num}...", "INFO")
+                        while self.is_paused and not self.is_stopped:
+                            self.sleep(0.2)
+
+                        if self.is_stopped:
+                            break
+
+                        acc_num = acc_idx + 1
+                        curr_user = acc.get("username", "").strip()
+                        curr_pass = acc.get("password", "").strip()
+                        acc_proxy = acc.get("proxy", "").strip()
+
+                        # Dynamic proxy switch if this profile uses a different proxy
+                        if acc_idx > 0 and acc_proxy and acc_proxy != current_proxy:
+                            self.log(f"Switching browser proxy for Account {acc_num}...", "INFO")
+                            try:
+                                browser_context.close()
+                            except Exception:
+                                pass
+                            current_proxy = acc_proxy
+                            try:
+                                browser_context, page = ChromeManager.get_or_launch_chrome(
+                                    playwright_instance=p,
+                                    target_url=self.target_url,
+                                    proxy=current_proxy,
+                                    headless=self.headless,
+                                    on_log=lambda msg: self.log(msg, "CHROME")
+                                )
+                            except Exception as ex:
+                                proxy_cfg = ChromeManager.parse_proxy(current_proxy)
+                                browser = p.chromium.launch(headless=self.headless, proxy=proxy_cfg)
+                                browser_context = browser.new_context(no_viewport=True)
+                                page = browser_context.new_page()
+                            self.browser_context = browser_context
+                            self.page = page
+                            page.set_default_timeout(DEFAULT_TIMEOUT_MS)
+
+                        self.log(f"==================================================", "INFO")
+                        cycle_tag = f" [Cycle #{cycle_num}]" if self.loop_continuous else ""
+                        self.log(f"▶ [ACCOUNT {acc_num}/{total_accounts}]{cycle_tag} Starting pipeline for: '{curr_user}'", "INFO")
+
+                        # Step 1: Login to Avanture for this account
+                        login_ok = self._ensure_account_login(page, curr_user, curr_pass)
+                        if not login_ok:
+                            fail_count += 1
+                            self.log(f"✘ [ACCOUNT {acc_num}] Login failed for '{curr_user}'. Skipping...", "ERROR")
+                            self.on_row_completed(acc_idx, False, "Login failed")
+                            self._report_progress(acc_num, total_accounts)
+                            # Logout & delay before next account
+                            self._perform_logout(page)
+                            if acc_idx < total_accounts - 1 and not self.is_stopped:
+                                self.log("Waiting 5 seconds before next account login...", "INFO")
+                                for s in range(5):
+                                    if self.is_stopped:
+                                        break
+                                    self.sleep(1.0)
+                            continue
+
+                        # Step 2: Pick listing row for this account
+                        img_path_candidate = acc.get("image_path", "") or self.default_image_path
+                        if acc.get("title") and acc.get("description"):
+                            row = pd.Series({
+                                "title": acc.get("title", "").strip(),
+                                "category": acc.get("category", "He seeks her").strip(),
+                                "description": acc.get("description", "").strip(),
+                                "country": acc.get("country", "Slovenia").strip(),
+                                "state": acc.get("state", "Osrednjeslovenska").strip(),
+                                "city": acc.get("city", "Ljubljana").strip(),
+                                "registration_number": acc.get("registration_number", "").strip(),
+                                "attachment_path": img_path_candidate
+                            })
+                        elif self.data_df is not None and len(self.data_df) > 0:
+                            row_idx = acc_idx if acc_idx < len(self.data_df) else (acc_idx % len(self.data_df))
+                            row = self.data_df.iloc[row_idx].copy()
+                            if img_path_candidate:
+                                row["attachment_path"] = img_path_candidate
+                        else:
+                            row = pd.Series({
+                                "title": "A relaxed evening for two in Ljubljana",
+                                "category": "He seeks her",
+                                "description": "Looking for a pleasant, mature company for dinner, wine, and casual conversation.",
+                                "country": "Slovenia",
+                                "state": "Osrednjeslovenska",
+                                "city": "Ljubljana",
+                                "registration_number": "",
+                                "attachment_path": img_path_candidate
+                            })
+
+                        # GUARANTEE: Profile-level image ALWAYS overrides and attaches!
+                        if img_path_candidate:
+                            row["attachment_path"] = img_path_candidate
+
+                        title_preview = str(row.get('title', ''))[:35]
+                        self.log(f"[ACCOUNT {acc_num}] Target listing ad: '{title_preview}'", "INFO")
+                        if img_path_candidate:
+                            self.log(f"[ACCOUNT {acc_num}] Attached picture file: '{Path(img_path_candidate).name}'", "INFO")
+
+                        if self.is_stopped:
+                            self.log("Process halted by user.", "WARNING")
+                            break
+
                         try:
-                            browser_context.close()
-                        except Exception:
-                            pass
-                        current_proxy = acc_proxy
-                        try:
-                            browser_context, page = ChromeManager.get_or_launch_chrome(
-                                playwright_instance=p,
-                                target_url=self.target_url,
-                                proxy=current_proxy,
-                                headless=self.headless,
-                                on_log=lambda msg: self.log(msg, "CHROME")
-                            )
+                            # Reset published tracker for this account
+                            self.session_published_count = 0
+
+                            # Step 3: Open New Listing form (ALWAYS deletes pre-existing ad first)
+                            form_ready, form_err = self._open_new_listing_form(page)
+                            if self.is_stopped:
+                                self.log("Process halted by user.", "WARNING")
+                                break
+                            if not form_ready:
+                                fail_count += 1
+                                self.log(f"✘ [ACCOUNT {acc_num}] Failed to open form: {form_err}", "ERROR")
+                                self._capture_error_screenshot(page, acc_idx)
+                                self.on_row_completed(acc_idx, False, form_err)
+                            else:
+                                if self.is_stopped:
+                                    self.log("Process halted by user.", "WARNING")
+                                    break
+                                # Step 4: Fill form fields, upload picture, and finalize publication
+                                ok, err_msg = self._fill_and_submit_listing(page, row)
+                                if ok:
+                                    success_count += 1
+                                    self.session_published_count += 1
+                                    self.log(f"✔ [ACCOUNT {acc_num}] Listing published successfully!", "SUCCESS")
+                                    self.on_row_completed(acc_idx, True, "")
+                                else:
+                                    fail_count += 1
+                                    self.log(f"✘ [ACCOUNT {acc_num}] Failed to publish: {err_msg}", "ERROR")
+                                    self._capture_error_screenshot(page, acc_idx)
+                                    self.on_row_completed(acc_idx, False, err_msg)
+
                         except Exception as ex:
-                            proxy_cfg = ChromeManager.parse_proxy(current_proxy)
-                            browser = p.chromium.launch(headless=self.headless, proxy=proxy_cfg)
-                            browser_context = browser.new_context(no_viewport=True)
-                            page = browser_context.new_page()
-                        page.set_default_timeout(DEFAULT_TIMEOUT_MS)
+                            fail_count += 1
+                            err_str = str(ex)
+                            self.log(f"✘ [ACCOUNT {acc_num}] Unexpected error: {err_str}", "ERROR")
+                            self._capture_error_screenshot(page, acc_idx)
+                            self.on_row_completed(acc_idx, False, err_str)
 
-                    self.log(f"==================================================", "INFO")
-                    self.log(f"▶ [ACCOUNT {acc_num}/{total_accounts}] Starting pipeline for: '{curr_user}'", "INFO")
-
-                    # Step 1: Login to Avanture for this account
-                    login_ok = self._ensure_account_login(page, curr_user, curr_pass)
-                    if not login_ok:
-                        fail_count += 1
-                        self.log(f"✘ [ACCOUNT {acc_num}] Login failed for '{curr_user}'. Skipping...", "ERROR")
-                        self.on_row_completed(acc_idx, False, "Login failed")
                         self._report_progress(acc_num, total_accounts)
-                        # Logout & delay before next account
+
+                        # Step 5: Logout from this account
+                        self.log(f"[ACCOUNT {acc_num}] Logging out of Avanture...", "INFO")
                         self._perform_logout(page)
+
+                        # Step 6: Delay before next account
                         if acc_idx < total_accounts - 1 and not self.is_stopped:
-                            self.log("Waiting 5 seconds before next account login...", "INFO")
-                            for s in range(5):
+                            self.log(f"Waiting {int(self.delay_between_accounts)} seconds before next account login...", "INFO")
+                            for s in range(int(self.delay_between_accounts)):
                                 if self.is_stopped:
                                     break
-                                time.sleep(1)
-                        continue
+                                self.sleep(1.0)
 
-                    # Step 2: Pick listing row for this account
-                    if acc.get("title") and acc.get("description"):
-                        row = pd.Series({
-                            "title": acc.get("title", "").strip(),
-                            "category": acc.get("category", "He seeks her").strip(),
-                            "description": acc.get("description", "").strip(),
-                            "country": acc.get("country", "Slovenia").strip(),
-                            "state": acc.get("state", "Osrednjeslovenska").strip(),
-                            "city": acc.get("city", "Ljubljana").strip(),
-                            "registration_number": acc.get("registration_number", "").strip(),
-                            "attachment_path": acc.get("image_path", "") or self.default_image_path
-                        })
-                    elif self.data_df is not None and len(self.data_df) > 0:
-                        row_idx = acc_idx if acc_idx < len(self.data_df) else (acc_idx % len(self.data_df))
-                        row = self.data_df.iloc[row_idx]
-                    else:
-                        row = pd.Series({
-                            "title": "A relaxed evening for two in Ljubljana",
-                            "category": "He seeks her",
-                            "description": "Looking for a pleasant, mature company for dinner, wine, and casual conversation.",
-                            "country": "Slovenia",
-                            "state": "Osrednjeslovenska",
-                            "city": "Ljubljana",
-                            "registration_number": "",
-                            "attachment_path": self.default_image_path
-                        })
-                    title_preview = str(row.get('title', ''))[:35]
-                    self.log(f"[ACCOUNT {acc_num}] Target listing ad: '{title_preview}'", "INFO")
+                    if self.is_stopped:
+                        break
 
-                    try:
-                        # Reset published tracker for this account
-                        self.session_published_count = 0
+                    # Check auto-stop timer limit
+                    if auto_stop_seconds and (time.time() - overall_start_time) >= auto_stop_seconds:
+                        self.log(f"⏰ Auto-Stop Timer reached ({int(self.auto_stop_seconds // 60)} minutes). Automatically stopping automation as scheduled.", "WARNING")
+                        break
 
-                        # Step 3: Open New Listing form (deletes pre-existing ad if limit reached)
-                        form_ready, form_err = self._open_new_listing_form(page)
-                        if not form_ready:
-                            fail_count += 1
-                            self.log(f"✘ [ACCOUNT {acc_num}] Failed to open form: {form_err}", "ERROR")
-                            self._capture_error_screenshot(page, acc_idx)
-                            self.on_row_completed(acc_idx, False, form_err)
-                        else:
-                            # Step 4: Fill form fields, upload picture, and finalize publication
-                            ok, err_msg = self._fill_and_submit_listing(page, row)
-                            if ok:
-                                success_count += 1
-                                self.session_published_count += 1
-                                self.log(f"✔ [ACCOUNT {acc_num}] Listing published successfully!", "SUCCESS")
-                                self.on_row_completed(acc_idx, True, "")
-                            else:
-                                fail_count += 1
-                                self.log(f"✘ [ACCOUNT {acc_num}] Failed to publish: {err_msg}", "ERROR")
-                                self._capture_error_screenshot(page, acc_idx)
-                                self.on_row_completed(acc_idx, False, err_msg)
+                    if not self.loop_continuous:
+                        self.log("Batch finished for all accounts. Continuous loop is disabled.", "INFO")
+                        break
 
-                    except Exception as ex:
-                        fail_count += 1
-                        err_str = str(ex)
-                        self.log(f"✘ [ACCOUNT {acc_num}] Unexpected error: {err_str}", "ERROR")
-                        self._capture_error_screenshot(page, acc_idx)
-                        self.on_row_completed(acc_idx, False, err_str)
+                    # Cycle interval wait before re-listing
+                    cycle_num += 1
+                    delay_seconds = int(self.loop_interval_seconds)
+                    if delay_seconds > 0:
+                        mins_display = delay_seconds / 60.0
+                        self.log(f"✔ Round #{cycle_num - 1} finished for all {total_accounts} accounts.", "SUCCESS")
+                        self.log(f"⏳ Waiting {mins_display:.1f} minute(s) before starting Round #{cycle_num} (will delete previous ads and re-post)...", "INFO")
 
-                    self._report_progress(acc_num, total_accounts)
-
-                    # Step 5: Logout from this account
-                    self.log(f"[ACCOUNT {acc_num}] Logging out of Avanture...", "INFO")
-                    self._perform_logout(page)
-
-                    # Step 6: 5 seconds delay before the next account
-                    if acc_idx < total_accounts - 1 and not self.is_stopped:
-                        self.log("Waiting 5 seconds before next account login...", "INFO")
-                        for s in range(5):
+                        for s in range(delay_seconds, 0, -1):
                             if self.is_stopped:
                                 break
-                            time.sleep(1)
+
+                            # Check auto-stop timer during wait
+                            if auto_stop_seconds and (time.time() - overall_start_time) >= auto_stop_seconds:
+                                self.log("⏰ Auto-Stop Timer reached during wait. Automatically stopping automation.", "WARNING")
+                                self.is_stopped = True
+                                break
+
+                            # Format live countdown
+                            hrs, rem = divmod(s, 3600)
+                            mins, secs = divmod(rem, 60)
+                            if hrs > 0:
+                                countdown_text = f"Next Round in {hrs:02d}:{mins:02d}:{secs:02d} (Round #{cycle_num})"
+                            else:
+                                countdown_text = f"Next Round in {mins:02d}:{secs:02d} (Round #{cycle_num})"
+
+                            self.on_countdown(countdown_text)
+                            if s % 60 == 0 or s in (30, 10, 5, 3, 1):
+                                self.log(f"⏳ Next re-listing starts in {countdown_text.split(' (')[0].replace('Next Round in ', '')}...", "INFO")
+
+                            self.sleep(1.0)
+
+                        self.on_countdown("")
+                    else:
+                        self.log(f"✔ Round #{cycle_num - 1} finished. Starting Round #{cycle_num} immediately...", "INFO")
+                        self.sleep(3.0)
 
             finally:
                 if browser_context:
@@ -279,6 +403,8 @@ class AutomationWorker:
 
     def _ensure_account_login(self, page: Page, username: str, password: str) -> bool:
         """Ensures the specified account is logged into Avanture."""
+        if self.is_stopped:
+            return False
         self.log(f"Logging in to Avanture as '{username}'...", "INFO")
 
         # 1. First check if current page already has active session for this user
@@ -294,14 +420,20 @@ class AutomationWorker:
             self.log(f"Already authenticated as '{username}'.", "SUCCESS")
             return True
 
+        if self.is_stopped:
+            return False
+
         # 2. If logged in as someone else, perform clean logout
         if has_logout and not has_profile:
             self.log("Switching user: Logging out previous account...", "INFO")
             self._perform_logout(page)
 
+        if self.is_stopped:
+            return False
+
         # 3. Navigate to login page
         page.goto(LOGIN_URL, wait_until="domcontentloaded")
-        time.sleep(1.5)
+        self.sleep(1.5)
 
         # Check if Avanture redirected because user is already authenticated
         body_nav = page.locator("body").inner_text()[:3000].lower()
@@ -378,9 +510,11 @@ class AutomationWorker:
     def _delete_existing_listing(self, page: Page) -> bool:
         """
         Deletes any pre-existing listing on https://www.avanture.net/classifieds/manage
-        to free up the slot when the account's 1-listing plan limit is reached.
+        to free up the slot when reposting ads.
         """
-        self.log("Freeing up 1-listing slot: Removing old listing...", "INFO")
+        if self.is_stopped:
+            return False
+        self.log("Checking for previous listing on account to delete and repost...", "INFO")
 
         # Auto-accept any browser dialogs (confirm prompts)
         try:
@@ -390,13 +524,26 @@ class AutomationWorker:
 
         if "classifieds/manage" not in page.url.lower():
             page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
-            time.sleep(2)
+            self.sleep(1.5)
 
         # Check if already 0 listings
-        if page.locator("text='You have no listings yet'").is_visible(timeout=1000):
-            self.log("No existing listings found to remove.", "INFO")
+        body_text = page.locator("body").inner_text().lower() if page.url else ""
+        empty_indicators = [
+            "you have no listings yet",
+            "nimate še nobenih oglasov",
+            "nimate nobenih oglasov",
+            "trenutno nimate oglasov",
+            "ni aktivnih oglasov"
+        ]
+        has_listing_indicators = page.locator(
+            "a[href*='/classifieds/view/'], a[href*='/classifieds/edit/'], button:has-text('Uredi'), button:has-text('Edit'), a:has-text('Uredi'), a:has-text('Edit'), [data-pa-menu], [data-pm-menu], .pc-card"
+        ).count() > 0
+
+        if any(ind in body_text for ind in empty_indicators) and not has_listing_indicators:
+            self.log("No existing listings found to remove. Slot is ready!", "INFO")
             return True
 
+        self.log("Previous listing detected on account. Auto-deleting to free up slot...", "WARNING")
         confirmed = False
 
         # METHOD 1: Look for the 3-dot options menu on the listing card
@@ -420,10 +567,10 @@ class AutomationWorker:
         for m_sel in menu_selectors:
             try:
                 loc = page.locator(m_sel).first
-                if loc.is_visible(timeout=500):
+                if loc.is_visible(timeout=600):
                     self.log("Opening listing options menu (⋯)...", "INFO")
                     loc.click()
-                    time.sleep(0.8)
+                    self.sleep(0.8)
                     break
             except Exception:
                 continue
@@ -453,7 +600,7 @@ class AutomationWorker:
                 if loc.is_visible(timeout=600):
                     self.log(f"Triggering deletion ({sel})...", "INFO")
                     loc.click()
-                    time.sleep(1.2)
+                    self.sleep(1.2)
                     break
             except Exception:
                 continue
@@ -485,13 +632,13 @@ class AutomationWorker:
                         self.log(f"Confirming deletion modal ({c_sel})...", "INFO")
                         c_loc.click()
                         confirmed = True
-                        time.sleep(2)
+                        self.sleep(1.5)
                         break
                 except Exception:
                     continue
             if confirmed:
                 break
-            time.sleep(0.3)
+            self.sleep(0.3)
 
         # Robust JS fallback if modal is still open
         if not confirmed:
@@ -510,17 +657,17 @@ class AutomationWorker:
                 if clicked_js:
                     self.log("Confirmed deletion modal via JS fallback ('Continue').", "INFO")
                     confirmed = True
-                    time.sleep(2)
+                    self.sleep(1.5)
             except Exception:
                 pass
 
         # METHOD 2: If not confirmed from card menu, open the listing view page and delete there!
         if not confirmed:
             self.log("Opening listing view page to execute deletion directly...", "INFO")
-            view_link = page.locator("a[href*='/classifieds/view/']:visible").first
+            view_link = page.locator("a[href*='/classifieds/view/']:visible, a[href*='/classifieds/edit/']:visible").first
             if view_link.is_visible(timeout=2000):
                 view_link.click()
-                time.sleep(2.5)
+                self.sleep(2.0)
 
                 for sel in del_selectors:
                     try:
@@ -528,7 +675,7 @@ class AutomationWorker:
                         if loc.is_visible(timeout=1000):
                             self.log(f"Found delete action on listing view ({sel}). Clicking...", "INFO")
                             loc.click()
-                            time.sleep(1.2)
+                            self.sleep(1.2)
                             break
                     except Exception:
                         continue
@@ -539,7 +686,7 @@ class AutomationWorker:
                         if c_loc.is_visible(timeout=1000):
                             self.log(f"Confirming deletion modal on view page ({c_sel})...", "INFO")
                             c_loc.click()
-                            time.sleep(2)
+                            self.sleep(1.5)
                             confirmed = True
                             break
                     except Exception:
@@ -558,57 +705,48 @@ class AutomationWorker:
                             }
                             return false;
                         }''')
-                        time.sleep(2)
+                        self.sleep(1.5)
                     except Exception:
                         pass
 
         # Wait for page to refresh and verify slot is empty
         page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
-        time.sleep(2)
-        self.log("Previous listing removed successfully. Ready to publish new listing!", "SUCCESS")
+        self.sleep(1.5)
+        self.log("Previous listing removed successfully. Slot is ready to publish new listing!", "SUCCESS")
         return True
 
     def _open_new_listing_form(self, page: Page) -> tuple[bool, str]:
         """Prepares a clean New Listing form on Avanture.
-        Ensures any old listing is removed before opening a new listing form.
-        PROTECTION: Never deletes a listing published in the current session!
+        ALWAYS deletes any pre-existing listing on the account so the 1-ad slot is completely free.
         """
-        self.log("Opening 'New Listing' form...", "INFO")
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
-        # Set dialog auto-accept handler for any browser confirmation popups
-        try:
-            page.on("dialog", lambda d: d.accept())
-        except Exception:
-            pass
+        # Step 1: ALWAYS clean the account's listing slot first by removing any previous ad
+        self._delete_existing_listing(page)
 
-        # Step 1: If we have NOT yet published a listing in this session,
-        # ensure any pre-existing listing on the account is removed first
-        # so that the 1-listing slot is completely free!
-        if self.session_published_count == 0:
-            if "classifieds/manage" not in page.url.lower():
-                page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
-                time.sleep(1.5)
-
-            has_old_listing = page.locator("a[href*='/classifieds/view/'], button:has-text('Edit listing'), a:has-text('Edit listing'), [data-pa-menu], .pc-card").count() > 0
-            if has_old_listing or self._is_limit_reached(page):
-                self.log("Active old listing detected on account. Auto-deleting old listing to free up slot...", "INFO")
-                self._delete_existing_listing(page)
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # Step 2: Now navigate directly to the clean New Listing form
         self.log("Navigating to https://www.avanture.net/classifieds/edit...", "INFO")
         page.goto("https://www.avanture.net/classifieds/edit", wait_until="domcontentloaded")
-        time.sleep(2)
+        self.sleep(1.5)
+
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # Step 3: Check if Avanture redirected to manage (limit reached)
         if self._is_limit_reached(page) or "classifieds/manage" in page.url.lower():
-            if self.session_published_count > 0:
-                self.log("⚠️ Single-listing slot is already active with your new ad. Protecting published ad!", "INFO")
-                return False, "Plan limit reached (1/1). Your new listing is live and protected."
-
             self.log("Limit detected. Deleting pre-existing listing...", "WARNING")
             self._delete_existing_listing(page)
+            if self.is_stopped:
+                return False, "Automation stopped by operator."
             page.goto("https://www.avanture.net/classifieds/edit", wait_until="domcontentloaded")
-            time.sleep(2)
+            self.sleep(1.5)
+
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # Step 4: Wait for the form title input field to appear
         try:
@@ -629,21 +767,26 @@ class AutomationWorker:
 
     def _type_with_delay(self, locator, text: str, delay_ms: int = 40):
         """Types text character-by-character with natural human typing cadence, slight jitter, and brief micro-pauses."""
+        if self.is_stopped:
+            return
         try:
             locator.click()
-            time.sleep(0.4)
+            self.sleep(0.3)
+            if self.is_stopped:
+                return
             locator.fill("")
-            time.sleep(0.2)
+            self.sleep(0.2)
             for char in text:
                 if self.is_stopped:
-                    break
+                    return
                 jitter = random.randint(max(18, delay_ms - 15), delay_ms + 20)
                 locator.press_sequentially(char, delay=jitter)
                 if char in [" ", ",", ".", "!", "?"] and random.random() < 0.25:
-                    time.sleep(random.uniform(0.12, 0.28))
-            time.sleep(0.6)
+                    self.sleep(random.uniform(0.12, 0.28))
+            self.sleep(0.4)
         except Exception:
-            locator.fill(text)
+            if not self.is_stopped:
+                locator.fill(text)
 
     def _fill_and_submit_listing(self, page: Page, row: pd.Series) -> tuple[bool, str]:
         """
@@ -656,6 +799,9 @@ class AutomationWorker:
         - City (#input_edit_classifieds_listing_data_location_city)
         - Registry number (#input_edit_classifieds_listing_data_maticna_stevilka)
         """
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
+
         title = str(row.get("title", "")).strip()[:50]
         category = str(row.get("category", "")).strip()
         description = str(row.get("description", "")).strip()
@@ -671,7 +817,10 @@ class AutomationWorker:
             return False, "Title input field (#input_edit_classifieds_listing_data_title) not found."
         self.log(f"Writing Title with typing cadence: '{title[:35]}...'", "INFO")
         self._type_with_delay(title_input, title, delay_ms=45)
-        time.sleep(1.0)
+        self.sleep(0.5)
+
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # 2. Select Category
         cat_select = page.locator("#input_edit_classifieds_listing_data_category").first
@@ -714,7 +863,10 @@ class AutomationWorker:
 
         cat_select.dispatch_event("change")
         self.log(f"Selected Category: '{category}'", "INFO")
-        time.sleep(1.0)
+        self.sleep(0.5)
+
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # 3. Fill Description with human-like typing delay
         desc_input = page.locator("#input_edit_classifieds_listing_data_body").first
@@ -722,7 +874,10 @@ class AutomationWorker:
             return False, "Description textarea (#input_edit_classifieds_listing_data_body) not found."
         self.log(f"Writing Description with typing cadence ({len(description)} chars)...", "INFO")
         self._type_with_delay(desc_input, description, delay_ms=30)
-        time.sleep(1.5)
+        self.sleep(0.5)
+
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # 4. Fill Location (Country -> State -> City)
         if country:
@@ -838,21 +993,31 @@ class AutomationWorker:
                         self.log(f"Selected City: '{city}'", "INFO")
 
         # 5. Registry Number (for Erotic Massage if visible)
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
         reg_input = page.locator("#input_edit_classifieds_listing_data_maticna_stevilka").first
         if reg_input.is_visible() and reg_number:
             self.log(f"Writing Registry Number with delay: '{reg_number}'", "INFO")
             self._type_with_delay(reg_input, reg_number, delay_ms=45)
-            time.sleep(1.0)
+            self.sleep(0.5)
 
         # 6. Submit Form
-        time.sleep(1.5)  # Natural human pacing pause before clicking publish
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
+        self.sleep(1.0)
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
+
         submit_btn = page.locator("button[type='submit']:has-text('Update'), button[type='submit']:has-text('Objavi'), button[type='submit']:has-text('Publish'), button[type='submit']:has-text('Save'), button[type='submit']:has-text('Oddaj'), button[type='submit'], input[type='submit']").first
         if not submit_btn.is_visible():
             return False, "Submit button not found."
 
         submit_btn.click()
         self.log("Listing submitted ('Objavi'). Waiting for confirmation...", "INFO")
-        time.sleep(3)
+        self.sleep(2.0)
+
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
 
         # Check for error alerts on page
         err_box = page.locator(".alert-danger, .error, .pu-msg-err, [role='alert'], .field-error").first
@@ -860,13 +1025,15 @@ class AutomationWorker:
             err_msg = err_box.inner_text().strip()
             # If server blocked publication due to 1-listing plan limit
             if self.auto_delete_old and self.session_published_count == 0 and any(w in err_msg.lower() for w in ["limit", "reached your limit", "omejitev"]):
+                if self.is_stopped:
+                    return False, "Automation stopped by operator."
                 self.log("Server rejected submission due to account limit. Deleting old listing and retrying...", "WARNING")
                 self._delete_existing_listing(page)
                 # Re-click submit
                 retry_submit = page.locator("button[type='submit']:has-text('Update'), button[type='submit']:has-text('Objavi'), button[type='submit']:has-text('Save'), button[type='submit']:has-text('Oddaj'), button[type='submit']:has-text('Publish'), button[type='submit']").first
                 if retry_submit.is_visible():
                     retry_submit.click()
-                    time.sleep(3)
+                    self.sleep(2.5)
                     if not err_box.is_visible(timeout=1500):
                         pass
                     else:
@@ -874,12 +1041,17 @@ class AutomationWorker:
             else:
                 return False, f"Server returned error: {err_msg}"
 
+        if self.is_stopped:
+            return False, "Automation stopped by operator."
+
         # 7. Upload Image / Attachment if specified (Step 2 on Avanture)
         # Wait for redirect to pictures/upload or view
         for _ in range(10):
+            if self.is_stopped:
+                return False, "Automation stopped by operator."
             if "pictures/upload" in page.url.lower() or "classifieds/view" in page.url.lower():
                 break
-            time.sleep(0.5)
+            self.sleep(0.3)
 
         att_raw = ListingValidator.get_attachment_raw(row)
         img_to_upload = None
@@ -905,6 +1077,8 @@ class AutomationWorker:
 
     def _finalize_without_picture(self, page: Page):
         """Clicks 'Continue: open the listing' when no picture is attached."""
+        if self.is_stopped:
+            return
         continue_selectors = [
             "a:has-text('Continue: open the listing')",
             "a:has-text('Nadaljuj: odpri oglas')",
@@ -914,11 +1088,13 @@ class AutomationWorker:
             "a[href*='/classifieds/view/']"
         ]
         for sel in continue_selectors:
+            if self.is_stopped:
+                return
             try:
                 loc = page.locator(sel).first
                 if loc.is_visible(timeout=1500):
                     loc.click()
-                    time.sleep(2)
+                    self.sleep(1.5)
                     return
             except Exception:
                 pass
@@ -928,6 +1104,8 @@ class AutomationWorker:
         Uploads the picture to the listing on Avanture.
         Avanture handles pictures in Step 2: https://www.avanture.net/classifieds/pictures/upload/<listing_id>
         """
+        if self.is_stopped:
+            return False
         source_label = "GUI picture" if not att_raw else "row picture"
         self.log(f"Navigating to upload {source_label}: '{img_path.name}'...", "INFO")
 
@@ -939,6 +1117,8 @@ class AutomationWorker:
 
         # 1. If not already on pictures/upload, navigate directly by listing ID
         if "pictures/upload" not in page.url.lower():
+            if self.is_stopped:
+                return False
             import re
             m = re.search(r"/(?:edit|view)/(\d+)", page.url)
             if m:
@@ -946,13 +1126,26 @@ class AutomationWorker:
                 upload_url = f"https://www.avanture.net/classifieds/pictures/upload/{lid}"
                 self.log(f"Navigating directly to picture uploader: {upload_url}...", "INFO")
                 page.goto(upload_url, wait_until="domcontentloaded")
-                time.sleep(2)
+                self.sleep(1.5)
+            elif "classifieds/manage" in page.url.lower():
+                first_listing = page.locator("a[href*='/classifieds/view/'], a[href*='/classifieds/edit/']").first
+                if first_listing.is_visible(timeout=2000):
+                    href = first_listing.get_attribute("href") or ""
+                    m_m = re.search(r"/(\d+)", href)
+                    if m_m:
+                        upload_url = f"https://www.avanture.net/classifieds/pictures/upload/{m_m.group(1)}"
+                        self.log(f"Navigating to picture uploader via listing link: {upload_url}...", "INFO")
+                        page.goto(upload_url, wait_until="domcontentloaded")
+                        self.sleep(1.5)
             else:
                 # Specific button only (never generic 'Slike' navbar links)
                 pic_btn = page.locator("a[href*='/classifieds/pictures/upload/']").first
                 if pic_btn.is_visible(timeout=2000):
                     pic_btn.click()
-                    time.sleep(2)
+                    self.sleep(1.5)
+
+        if self.is_stopped:
+            return False
 
         # 2. Attach picture file on upload page
         try:
@@ -961,16 +1154,24 @@ class AutomationWorker:
             lid = m.group(1) if m else ""
 
             page.wait_for_selector("input[type='file']", timeout=10000)
+            if self.is_stopped:
+                return False
             file_input = page.locator("input[type='file']").first
             file_input.set_input_files(str(img_path))
             self.log(f"Attached picture file: '{img_path.name}'. Uploading to server...", "INFO")
-            time.sleep(2)
+            self.sleep(1.5)
+
+            if self.is_stopped:
+                return False
 
             # If an 'Upload files' button is present and visible, click it
             upload_btn = page.locator("a:has-text('Upload files'), button:has-text('Upload files'), a:has-text('Naloži datoteke')").first
             if upload_btn.is_visible(timeout=1000):
                 upload_btn.click()
-                time.sleep(2)
+                self.sleep(1.5)
+
+            if self.is_stopped:
+                return False
 
             # 3. Finalize publication: Click 'Continue: open the listing' / 'Nadaljuj: odpri oglas'
             self.log("Finalizing publication: Waiting for 'Continue: open the listing'...", "INFO")
@@ -987,6 +1188,8 @@ class AutomationWorker:
                 "button:has-text('Nadaljuj')"
             ]
             for _ in range(15):
+                if self.is_stopped:
+                    return False
                 for c_sel in continue_selectors:
                     try:
                         continue_btn = page.locator(c_sel).first
@@ -994,20 +1197,20 @@ class AutomationWorker:
                             self.log("Clicking 'Continue: open the listing' to complete publication...", "INFO")
                             continue_btn.click()
                             clicked_continue = True
-                            time.sleep(2.5)
+                            self.sleep(1.5)
                             break
                     except Exception:
                         pass
                 if clicked_continue:
                     break
-                time.sleep(0.6)
+                self.sleep(0.4)
 
             # Failsafe direct navigation: If still on upload page, navigate directly to view page
-            if "pictures/upload" in page.url.lower() and lid:
+            if "pictures/upload" in page.url.lower() and lid and not self.is_stopped:
                 view_url = f"https://www.avanture.net/classifieds/view/{lid}"
                 self.log(f"Opening live listing view at: {view_url}...", "INFO")
                 page.goto(view_url, wait_until="domcontentloaded")
-                time.sleep(2)
+                self.sleep(1.5)
 
             self.log(f"Listing successfully published with picture: '{img_path.name}'!", "SUCCESS")
             return True
