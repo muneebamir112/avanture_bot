@@ -743,5 +743,24 @@ def change_superadmin_password(req: ChangeSuperAdminPasswordRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    import webbrowser
+    import threading
+    import time
+
+    print("\n" + "="*60)
+    print(" ⚡ Avanture Central Web Server is RUNNING!")
+    print(" 🌐 Opening Web Dashboard in your browser: http://localhost:8000")
+    print(" 💡 Keep this terminal window open while using the dashboard.")
+    print("    (Press Ctrl+C to stop the server)")
+    print("="*60 + "\n")
+
+    def open_browser():
+        time.sleep(1.2)
+        try:
+            webbrowser.open("http://localhost:8000")
+        except Exception:
+            pass
+
+    threading.Thread(target=open_browser, daemon=True).start()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
