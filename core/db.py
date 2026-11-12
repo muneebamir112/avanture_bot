@@ -217,7 +217,7 @@ class UserManager:
                 import requests
                 r = requests.get(
                     f"{AUTH_SERVER_URL}/api/client/check-status?username={username_clean}",
-                    timeout=2.5
+                    timeout=1.0
                 )
                 if r.status_code == 200:
                     data = r.json()

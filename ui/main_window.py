@@ -75,6 +75,11 @@ class DashboardView(ctk.CTkFrame):
         self.profiles_list = []
         self.current_profile_index = 0
 
+        # Debounced save & UI refresh timers (prevents main thread lag during typing)
+        self._save_timer = None
+        self._dropdown_refresh_timer = None
+        self._access_monitor_active = True
+
         # Metrics
         self.total_count = 0
         self.success_count = 0
@@ -84,7 +89,7 @@ class DashboardView(ctk.CTkFrame):
         self._build_ui()
         self._show_page("runner")
         self._update_auth_status()
-        self.after(4000, self._check_live_access_status)
+        self._start_access_monitor_thread()
 
     def _load_saved_data(self):
         loaded_profiles, proxy, img_path = AvantureCredentialsStore.load()
@@ -1327,10 +1332,13 @@ class DashboardView(ctk.CTkFrame):
     def _on_label_key(self):
         if 0 <= self.current_profile_index < len(self.profiles_list):
             self.profiles_list[self.current_profile_index]["profile_name"] = self.form_label.get().strip()
-            self._save_current_account_form(silent=True)
-            labels = self._get_profile_menu_labels()
-            self.profile_select_menu.configure(values=labels)
-            self.profile_select_menu.set(labels[self.current_profile_index])
+            self._schedule_debounced_save()
+            if self._dropdown_refresh_timer is not None:
+                try:
+                    self.after_cancel(self._dropdown_refresh_timer)
+                except Exception:
+                    pass
+            self._dropdown_refresh_timer = self.after(300, self._refresh_profile_dropdown)
 
     def _load_account_to_ui(self):
         if not (0 <= self.current_profile_index < len(self.profiles_list)):
@@ -1573,13 +1581,13 @@ class DashboardView(ctk.CTkFrame):
         self._on_field_change()
 
     def _on_field_change(self):
-        # Auto-save changes into memory and file
-        self._save_current_account_form(silent=True)
+        # Ultra-fast in-memory update with debounced disk persistence (0ms typing lag)
+        self._schedule_debounced_save()
 
     def _on_title_key(self):
         txt = self.form_title.get()
         self.title_count_lbl.configure(text=f"{len(txt)} / 50")
-        self._on_field_change()
+        self._schedule_debounced_save()
 
     def _on_desc_key(self):
         txt = self.form_desc.get("1.0", "end-1c").strip()
@@ -1594,9 +1602,10 @@ class DashboardView(ctk.CTkFrame):
                 text=f"{length} / 1000 (Valid)",
                 text_color="#34d399"
             )
-        self._on_field_change()
+        self._schedule_debounced_save()
 
-    def _save_current_account_form(self, silent: bool = False):
+    def _save_current_account_to_memory(self):
+        """Immediately captures widget state into memory without touching disk."""
         if not (0 <= self.current_profile_index < len(self.profiles_list)):
             return
 
@@ -1636,9 +1645,39 @@ class DashboardView(ctk.CTkFrame):
         acc["city"] = self.form_city.get().strip()
         acc["registration_number"] = self.form_reg.get().strip()
 
+    def _schedule_debounced_save(self):
+        """Saves immediately in memory, then delays disk write until user finishes typing."""
+        self._save_current_account_to_memory()
+        if self._save_timer is not None:
+            try:
+                self.after_cancel(self._save_timer)
+            except Exception:
+                pass
+        self._save_timer = self.after(500, self._commit_save_to_disk)
+
+    def _commit_save_to_disk(self):
+        """Asynchronously commits memory state to disk without freezing UI."""
+        self._save_timer = None
+        self._save_current_account_to_memory()
+        try:
+            AvantureCredentialsStore.save(self.profiles_list)
+        except Exception:
+            pass
+
+    def _save_current_account_form(self, silent: bool = False):
+        """Explicit save action (e.g. Save button, switching tabs, starting run)."""
+        if self._save_timer is not None:
+            try:
+                self.after_cancel(self._save_timer)
+            except Exception:
+                pass
+            self._save_timer = None
+
+        self._save_current_account_to_memory()
         AvantureCredentialsStore.save(self.profiles_list)
 
-        if not silent:
+        if not silent and (0 <= self.current_profile_index < len(self.profiles_list)):
+            acc = self.profiles_list[self.current_profile_index]
             u_name = acc.get("profile_name") or acc.get("username") or f"Profile {self.current_profile_index + 1}"
             self.log(f"Profile settings saved for '{u_name}'", "SUCCESS")
             messagebox.showinfo("Saved", f"Profile settings for '{u_name}' saved successfully!")
@@ -1893,26 +1932,38 @@ class DashboardView(ctk.CTkFrame):
                 text_color="#94a3b8"
             )
 
-    def _check_live_access_status(self):
-        """Periodically ensures this admin operator's access has not been revoked by the Super Admin."""
-        try:
-            username = self.current_user.get("username", "")
-            if username and not self.db.is_user_active(username):
-                if self.worker:
-                    try:
-                        self.worker.stop()
-                    except Exception:
-                        pass
-                messagebox.showerror(
-                    "Access Revoked",
-                    "Your admin account access has been revoked by the Super Administrator.\nYou have been logged out."
-                )
-                if self.on_logout:
-                    self.on_logout()
-                return
-        except Exception:
-            pass
-        self.after(4000, self._check_live_access_status)
+    def _start_access_monitor_thread(self):
+        """Runs the remote access revocation check asynchronously in a background daemon thread (never freezes UI)."""
+        def _monitor_worker():
+            import time
+            while getattr(self, "_access_monitor_active", True):
+                time.sleep(6)
+                if not getattr(self, "_access_monitor_active", True):
+                    break
+                try:
+                    username = self.current_user.get("username", "")
+                    if username and not self.db.is_user_active(username):
+                        self.after(0, self._handle_remote_revocation)
+                        break
+                except Exception:
+                    pass
+
+        t = threading.Thread(target=_monitor_worker, daemon=True)
+        t.start()
+
+    def _handle_remote_revocation(self):
+        self._access_monitor_active = False
+        if self.worker:
+            try:
+                self.worker.stop()
+            except Exception:
+                pass
+        messagebox.showerror(
+            "Access Revoked",
+            "Your admin account access has been revoked by the Super Administrator.\nYou have been logged out."
+        )
+        if self.on_logout:
+            self.on_logout()
 
     def _on_click_manage_admins(self):
         if self.admin_window is None or not self.admin_window.winfo_exists():
@@ -1922,5 +1973,16 @@ class DashboardView(ctk.CTkFrame):
 
     def _on_click_logout(self):
         if messagebox.askyesno("Sign Out", "Are you sure you want to sign out?"):
+            self._access_monitor_active = False
+            if self._save_timer is not None:
+                try:
+                    self.after_cancel(self._save_timer)
+                except Exception:
+                    pass
+            self._save_current_account_to_memory()
+            try:
+                AvantureCredentialsStore.save(self.profiles_list)
+            except Exception:
+                pass
             if self.on_logout:
                 self.on_logout()

@@ -395,7 +395,12 @@ DASHBOARD_PAGE_HTML = """
             const res = await fetchWithAuth('/api/users');
             if (!res) return;
             allUsers = await res.json();
-            renderTable(allUsers);
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput && searchInput.value.trim().length > 0) {
+                filterUsers();
+            } else {
+                renderTable(allUsers);
+            }
         }
 
         function renderTable(users) {
@@ -572,7 +577,7 @@ DASHBOARD_PAGE_HTML = """
 
         // Initialize on load
         loadUsers();
-        setInterval(loadUsers, 5000); // Auto-refresh table every 5s
+        setInterval(loadUsers, 12000); // Polling interval (12s) to prevent DOM churn
     </script>
 </body>
 </html>

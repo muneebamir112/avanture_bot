@@ -595,7 +595,7 @@ class SuperAdminView(ctk.CTkFrame):
             font=ctk.CTkFont(family="Segoe UI", size=11)
         )
         self.search_entry.grid(row=0, column=1, sticky="e")
-        self.search_entry.bind("<KeyRelease>", lambda e: self._filter_profiles())
+        self.search_entry.bind("<KeyRelease>", lambda e: self._on_search_key())
 
         # Scrollable Cards
         self.profiles_scroll = ctk.CTkScrollableFrame(
@@ -644,6 +644,14 @@ class SuperAdminView(ctk.CTkFrame):
         self.kpi_revoked.configure(text=str(revoked_count))
 
         self._render_profiles(self.all_users)
+
+    def _on_search_key(self):
+        if hasattr(self, "_search_timer") and self._search_timer is not None:
+            try:
+                self.after_cancel(self._search_timer)
+            except Exception:
+                pass
+        self._search_timer = self.after(200, self._filter_profiles)
 
     def _filter_profiles(self):
         query = self.search_entry.get().strip().lower()
