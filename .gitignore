@@ -1,0 +1,93 @@
+# ====================================================================
+# Avanture Automation - Git Ignore Configuration
+# ====================================================================
+
+# --- Security & Sensitive Credentials (NEVER COMMIT) ---
+.avanture_creds.json
+.remember_me.json
+session.json
+*.db
+*.sqlite
+*.sqlite3
+auth_system.db
+auth_server/auth_server.db
+auth_server_url.txt
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# --- Large Binaries, Installers & Distribution ---
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.zip
+*.tar.gz
+*.7z
+*.rar
+*.pkg
+*.dmg
+AvantureSetup.exe
+AvantureAutomation_Setup.zip
+
+# --- Chrome Profiles, Cache & Automation Artifacts ---
+chrome_profile/
+chrome_profiles/
+run_profile_*/
+screenshots/
+logs/
+*.log
+
+# --- Runtime Uploads & Generated Images ---
+data/images/*
+!data/images/.gitkeep
+
+# --- Python Environment & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.pyo
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Operating System Files ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# --- IDEs & Code Editors ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# --- Testing & Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+

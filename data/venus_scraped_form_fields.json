@@ -1,0 +1,237 @@
+[
+  {
+    "tag": "input",
+    "id": "",
+    "name": "csrf_token",
+    "type": "hidden",
+    "label": "Naslov*\n0 / 50",
+    "placeholder": "",
+    "options": [],
+    "value": "8d481b2054625ae2d5f5f011e45ef1ba",
+    "visible": false
+  },
+  {
+    "tag": "input",
+    "id": "input_edit_classifieds_listing_data_title",
+    "name": "data_title",
+    "type": "text",
+    "label": "Naslov*\n0 / 50",
+    "placeholder": "npr. Sproščen večer v dvoje",
+    "options": [],
+    "value": "",
+    "visible": true
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_category",
+    "name": "data_category",
+    "type": "",
+    "label": "Kategorija*\nkategorije, dovoljene za tvoj spol",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Izberi"
+      },
+      {
+        "value": "1",
+        "text": "Ona išče njega"
+      },
+      {
+        "value": "2",
+        "text": "Ona išče njo"
+      },
+      {
+        "value": "3",
+        "text": "Ona išče par"
+      },
+      {
+        "value": "4",
+        "text": "Ona nudi spremstvo"
+      },
+      {
+        "value": "14",
+        "text": "Iščem Trans"
+      },
+      {
+        "value": "16",
+        "text": "Dominanten/a išče"
+      },
+      {
+        "value": "17",
+        "text": "Submisiven/a išče"
+      },
+      {
+        "value": "18",
+        "text": "Switch išče"
+      },
+      {
+        "value": "19",
+        "text": "Kink & Fetiš"
+      },
+      {
+        "value": "20",
+        "text": "Virtualno"
+      },
+      {
+        "value": "21",
+        "text": "Only Fans"
+      },
+      {
+        "value": "22",
+        "text": "Erotične masaže"
+      },
+      {
+        "value": "23",
+        "text": "Resne zveze"
+      },
+      {
+        "value": "24",
+        "text": "Dnevni počitek"
+      },
+      {
+        "value": "25",
+        "text": "Erotične igračke"
+      },
+      {
+        "value": "26",
+        "text": "Dogodki"
+      },
+      {
+        "value": "27",
+        "text": "Ostalo"
+      }
+    ],
+    "value": "",
+    "visible": true
+  },
+  {
+    "tag": "textarea",
+    "id": "input_edit_classifieds_listing_data_body",
+    "name": "data_body",
+    "type": "",
+    "label": "Oglas*\n0 / 1000",
+    "placeholder": "Napiši, koga iščeš in kaj ponujaš. Brez kontaktnih podatkov — sporočila gredo prek strani.",
+    "options": [],
+    "value": "",
+    "visible": true
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_location_country",
+    "name": "data_location[country]",
+    "type": "",
+    "label": "DRŽAVA",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Izberi"
+      },
+      {
+        "value": "197",
+        "text": "Austria"
+      },
+      {
+        "value": "187",
+        "text": "Bosnia and Herzegovina"
+      },
+      {
+        "value": "186",
+        "text": "Croatia"
+      },
+      {
+        "value": "195",
+        "text": "Hungary"
+      },
+      {
+        "value": "169",
+        "text": "Italy"
+      },
+      {
+        "value": "184",
+        "text": "Serbia and Montenegro"
+      },
+      {
+        "value": "193",
+        "text": "Slovenia"
+      }
+    ],
+    "value": "",
+    "visible": true
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_location_state",
+    "name": "data_location[state]",
+    "type": "",
+    "label": "REGIJA",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Izberi"
+      }
+    ],
+    "value": "",
+    "visible": true
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_location_city",
+    "name": "data_location[city]",
+    "type": "",
+    "label": "KRAJ",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Izberi"
+      }
+    ],
+    "value": "",
+    "visible": true
+  },
+  {
+    "tag": "input",
+    "id": "input_edit_classifieds_listing_data_maticna_stevilka",
+    "name": "data_maticna_stevilka",
+    "type": "text",
+    "label": "Matična številka*zakonsko obvezna za Erotične masaže",
+    "placeholder": "1234567000",
+    "options": [],
+    "value": "",
+    "visible": false
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_premium",
+    "name": "data_premium",
+    "type": "",
+    "label": "premium",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Izberi"
+      },
+      {
+        "value": "1",
+        "text": "1"
+      }
+    ],
+    "value": "",
+    "visible": false
+  },
+  {
+    "tag": "input",
+    "id": "",
+    "name": "do_save_listing",
+    "type": "hidden",
+    "label": "Naslov*\n0 / 50",
+    "placeholder": "",
+    "options": [],
+    "value": "1",
+    "visible": false
+  }
+]

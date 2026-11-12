@@ -1,0 +1,217 @@
+[
+  {
+    "tag": "input",
+    "id": "",
+    "name": "csrf_token",
+    "type": "hidden",
+    "label": "Title*\n0 / 50",
+    "placeholder": "",
+    "options": []
+  },
+  {
+    "tag": "input",
+    "id": "input_edit_classifieds_listing_data_title",
+    "name": "data_title",
+    "type": "text",
+    "label": "Title*\n0 / 50",
+    "placeholder": "e.g. A relaxed evening for two",
+    "options": []
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_category",
+    "name": "data_category",
+    "type": "",
+    "label": "Category*\ncategories allowed for your gender",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Select"
+      },
+      {
+        "value": "5",
+        "text": "He seeks her"
+      },
+      {
+        "value": "6",
+        "text": "He seeks him"
+      },
+      {
+        "value": "7",
+        "text": "He seeks couple"
+      },
+      {
+        "value": "8",
+        "text": "Male escort"
+      },
+      {
+        "value": "14",
+        "text": "Seeking Trans"
+      },
+      {
+        "value": "16",
+        "text": "Dominant looking"
+      },
+      {
+        "value": "17",
+        "text": "Submissive looking"
+      },
+      {
+        "value": "18",
+        "text": "Switch looking"
+      },
+      {
+        "value": "19",
+        "text": "Kink & Fetish"
+      },
+      {
+        "value": "20",
+        "text": "Virtual"
+      },
+      {
+        "value": "21",
+        "text": "Only Fans"
+      },
+      {
+        "value": "22",
+        "text": "Erotic massage"
+      },
+      {
+        "value": "23",
+        "text": "Serious relationship"
+      },
+      {
+        "value": "24",
+        "text": "Short stay"
+      },
+      {
+        "value": "25",
+        "text": "Sex toys"
+      },
+      {
+        "value": "26",
+        "text": "Events"
+      },
+      {
+        "value": "27",
+        "text": "Other"
+      }
+    ]
+  },
+  {
+    "tag": "textarea",
+    "id": "input_edit_classifieds_listing_data_body",
+    "name": "data_body",
+    "type": "",
+    "label": "Description*\n0 / 1000",
+    "placeholder": "Say who you are looking for and what you offer. No contact details — messages go through the site.",
+    "options": []
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_location_country",
+    "name": "data_location[country]",
+    "type": "",
+    "label": "COUNTRY",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Select"
+      },
+      {
+        "value": "197",
+        "text": "Austria"
+      },
+      {
+        "value": "187",
+        "text": "Bosnia and Herzegovina"
+      },
+      {
+        "value": "186",
+        "text": "Croatia"
+      },
+      {
+        "value": "195",
+        "text": "Hungary"
+      },
+      {
+        "value": "169",
+        "text": "Italy"
+      },
+      {
+        "value": "184",
+        "text": "Serbia and Montenegro"
+      },
+      {
+        "value": "193",
+        "text": "Slovenia"
+      }
+    ]
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_location_state",
+    "name": "data_location[state]",
+    "type": "",
+    "label": "STATE / PROVINCE",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Select"
+      }
+    ]
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_location_city",
+    "name": "data_location[city]",
+    "type": "",
+    "label": "CITY",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Select"
+      }
+    ]
+  },
+  {
+    "tag": "input",
+    "id": "input_edit_classifieds_listing_data_maticna_stevilka",
+    "name": "data_maticna_stevilka",
+    "type": "text",
+    "label": "Registry number*required by law for Erotične masaže",
+    "placeholder": "1234567000",
+    "options": []
+  },
+  {
+    "tag": "select",
+    "id": "input_edit_classifieds_listing_data_premium",
+    "name": "data_premium",
+    "type": "",
+    "label": "premium",
+    "placeholder": "",
+    "options": [
+      {
+        "value": "",
+        "text": "Select"
+      },
+      {
+        "value": "1",
+        "text": "Da"
+      }
+    ]
+  },
+  {
+    "tag": "input",
+    "id": "",
+    "name": "do_save_listing",
+    "type": "hidden",
+    "label": "Title*\n0 / 50",
+    "placeholder": "",
+    "options": []
+  }
+]

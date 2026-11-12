@@ -1,0 +1,1093 @@
+{
+  "country": "Slovenia",
+  "states": [
+    {
+      "value": "2853",
+      "name": "Gorenjska"
+    },
+    {
+      "value": "2838",
+      "name": "Goriška"
+    },
+    {
+      "value": "2825",
+      "name": "Jugovzhodna"
+    },
+    {
+      "value": "2847",
+      "name": "Koroška"
+    },
+    {
+      "value": "2824",
+      "name": "Notranjsko-kraška"
+    },
+    {
+      "value": "2821",
+      "name": "Obalno-kraška"
+    },
+    {
+      "value": "2842",
+      "name": "Osrednjeslovenska"
+    },
+    {
+      "value": "2871",
+      "name": "Podravska"
+    },
+    {
+      "value": "2885",
+      "name": "Pomurska"
+    },
+    {
+      "value": "2854",
+      "name": "Savinjska"
+    },
+    {
+      "value": "2839",
+      "name": "Spodnjeposavska"
+    },
+    {
+      "value": "2861",
+      "name": "Zasavska"
+    }
+  ],
+  "state_city_map": {
+    "Gorenjska": [
+      {
+        "value": "62843",
+        "name": "Bistrica ob Tržiču"
+      },
+      {
+        "value": "63052",
+        "name": "Bled"
+      },
+      {
+        "value": "62282",
+        "name": "Britof"
+      },
+      {
+        "value": "62719",
+        "name": "Golnik"
+      },
+      {
+        "value": "63465",
+        "name": "Hrušica"
+      },
+      {
+        "value": "63395",
+        "name": "Jesenice"
+      },
+      {
+        "value": "62281",
+        "name": "Kokrica"
+      },
+      {
+        "value": "63396",
+        "name": "Koroška Bela"
+      },
+      {
+        "value": "62165",
+        "name": "Kranj"
+      },
+      {
+        "value": "63675",
+        "name": "Kranjska Gora"
+      },
+      {
+        "value": "62742",
+        "name": "Križe"
+      },
+      {
+        "value": "62502",
+        "name": "Kropa"
+      },
+      {
+        "value": "62863",
+        "name": "Lesce"
+      },
+      {
+        "value": "63494",
+        "name": "Mojstrana"
+      },
+      {
+        "value": "62503",
+        "name": "Preddvor"
+      },
+      {
+        "value": "62193",
+        "name": "Predoslje"
+      },
+      {
+        "value": "62953",
+        "name": "Radovljica"
+      },
+      {
+        "value": "62166",
+        "name": "Šenčur"
+      },
+      {
+        "value": "61610",
+        "name": "Škofja Loka"
+      },
+      {
+        "value": "63362",
+        "name": "Slovenski Javornik"
+      },
+      {
+        "value": "62954",
+        "name": "Tržič"
+      },
+      {
+        "value": "62283",
+        "name": "Visoko"
+      },
+      {
+        "value": "62064",
+        "name": "Železniki"
+      },
+      {
+        "value": "60766",
+        "name": "Žiri"
+      }
+    ],
+    "Goriška": [
+      {
+        "value": "59743",
+        "name": "Ajdovščina"
+      },
+      {
+        "value": "59740",
+        "name": "Bilje"
+      },
+      {
+        "value": "59489",
+        "name": "Branik"
+      },
+      {
+        "value": "61373",
+        "name": "Cerkno"
+      },
+      {
+        "value": "60853",
+        "name": "Deskle"
+      },
+      {
+        "value": "60558",
+        "name": "Idrija"
+      },
+      {
+        "value": "61083",
+        "name": "Kanal"
+      },
+      {
+        "value": "62164",
+        "name": "Kobarid"
+      },
+      {
+        "value": "60244",
+        "name": "Kromberk"
+      },
+      {
+        "value": "59844",
+        "name": "Lokavec"
+      },
+      {
+        "value": "59843",
+        "name": "Miren"
+      },
+      {
+        "value": "60228",
+        "name": "Nova Gorica"
+      },
+      {
+        "value": "59742",
+        "name": "Prvačina"
+      },
+      {
+        "value": "59741",
+        "name": "Renče"
+      },
+      {
+        "value": "60092",
+        "name": "Šempas"
+      },
+      {
+        "value": "60091",
+        "name": "Šempeter"
+      },
+      {
+        "value": "60341",
+        "name": "Solkan"
+      },
+      {
+        "value": "60747",
+        "name": "Spodnja Idrija"
+      },
+      {
+        "value": "61746",
+        "name": "Tolmin"
+      },
+      {
+        "value": "59445",
+        "name": "Vipava"
+      },
+      {
+        "value": "59872",
+        "name": "Vrtojba"
+      }
+    ],
+    "Jugovzhodna": [
+      {
+        "value": "57329",
+        "name": "Črnomelj"
+      },
+      {
+        "value": "57945",
+        "name": "Kočevje"
+      },
+      {
+        "value": "63860",
+        "name": "Kotlje"
+      },
+      {
+        "value": "57946",
+        "name": "Metlika"
+      },
+      {
+        "value": "60248",
+        "name": "Mirna"
+      },
+      {
+        "value": "59080",
+        "name": "Novo Mesto"
+      },
+      {
+        "value": "58578",
+        "name": "Ribnica"
+      },
+      {
+        "value": "58924",
+        "name": "Straža"
+      },
+      {
+        "value": "59845",
+        "name": "Trebnje"
+      },
+      {
+        "value": "59314",
+        "name": "Žužemberk"
+      }
+    ],
+    "Koroška": [
+      {
+        "value": "63581",
+        "name": "Črna na Koroškem"
+      },
+      {
+        "value": "64279",
+        "name": "Dravograd"
+      },
+      {
+        "value": "63761",
+        "name": "Legen"
+      },
+      {
+        "value": "63859",
+        "name": "Mežica"
+      },
+      {
+        "value": "63397",
+        "name": "Mislinja"
+      },
+      {
+        "value": "64372",
+        "name": "Muta"
+      },
+      {
+        "value": "63951",
+        "name": "Pameče"
+      },
+      {
+        "value": "63579",
+        "name": "Podgorje"
+      },
+      {
+        "value": "64063",
+        "name": "Prevalje"
+      },
+      {
+        "value": "64373",
+        "name": "Radlje ob Dravi"
+      },
+      {
+        "value": "60343",
+        "name": "Ravne"
+      },
+      {
+        "value": "63861",
+        "name": "Slovenj Gradec"
+      },
+      {
+        "value": "64280",
+        "name": "Vuhred"
+      },
+      {
+        "value": "64355",
+        "name": "Vuzenica"
+      }
+    ],
+    "Notranjsko-kraška": [
+      {
+        "value": "59079",
+        "name": "Cerknica"
+      },
+      {
+        "value": "57328",
+        "name": "Ilirska Bistrica"
+      },
+      {
+        "value": "58169",
+        "name": "Pivka"
+      },
+      {
+        "value": "58923",
+        "name": "Postojna"
+      },
+      {
+        "value": "59106",
+        "name": "Rakek"
+      }
+    ],
+    "Obalno-kraška": [
+      {
+        "value": "57454",
+        "name": "Ankaran"
+      },
+      {
+        "value": "57210",
+        "name": "Bertoki"
+      },
+      {
+        "value": "57211",
+        "name": "Dekani"
+      },
+      {
+        "value": "58168",
+        "name": "Divača"
+      },
+      {
+        "value": "57094",
+        "name": "Izola"
+      },
+      {
+        "value": "57066",
+        "name": "Jagodje"
+      },
+      {
+        "value": "57209",
+        "name": "Koper"
+      },
+      {
+        "value": "56826",
+        "name": "Lucija"
+      },
+      {
+        "value": "57065",
+        "name": "Piran"
+      },
+      {
+        "value": "57095",
+        "name": "Pobegi"
+      },
+      {
+        "value": "56955",
+        "name": "Portorož"
+      },
+      {
+        "value": "58333",
+        "name": "Sežana"
+      }
+    ],
+    "Osrednjeslovenska": [
+      {
+        "value": "59976",
+        "name": "Borovnica"
+      },
+      {
+        "value": "60748",
+        "name": "Brezovica pri Ljubljani"
+      },
+      {
+        "value": "61489",
+        "name": "Dob"
+      },
+      {
+        "value": "60882",
+        "name": "Dobrova"
+      },
+      {
+        "value": "61401",
+        "name": "Domžale"
+      },
+      {
+        "value": "60651",
+        "name": "Dragomer"
+      },
+      {
+        "value": "60247",
+        "name": "Grosuplje"
+      },
+      {
+        "value": "60650",
+        "name": "Horjul"
+      },
+      {
+        "value": "60246",
+        "name": "Ig"
+      },
+      {
+        "value": "62065",
+        "name": "Kamnik"
+      },
+      {
+        "value": "61747",
+        "name": "Komenda"
+      },
+      {
+        "value": "60884",
+        "name": "Litija"
+      },
+      {
+        "value": "60883",
+        "name": "Ljubljana"
+      },
+      {
+        "value": "59975",
+        "name": "Logatec"
+      },
+      {
+        "value": "61374",
+        "name": "Medvode"
+      },
+      {
+        "value": "62066",
+        "name": "Mekinje"
+      },
+      {
+        "value": "61611",
+        "name": "Mengeš"
+      },
+      {
+        "value": "61402",
+        "name": "Moravče"
+      },
+      {
+        "value": "61965",
+        "name": "Podgorje"
+      },
+      {
+        "value": "61612",
+        "name": "Radomlje"
+      },
+      {
+        "value": "60468",
+        "name": "Rovte"
+      },
+      {
+        "value": "60447",
+        "name": "Škofljica"
+      },
+      {
+        "value": "61748",
+        "name": "Šmarca"
+      },
+      {
+        "value": "61375",
+        "name": "Trzin"
+      },
+      {
+        "value": "60245",
+        "name": "Verd"
+      },
+      {
+        "value": "60229",
+        "name": "Vir"
+      },
+      {
+        "value": "60579",
+        "name": "Vnanje Gorice"
+      },
+      {
+        "value": "61847",
+        "name": "Vodice"
+      },
+      {
+        "value": "60342",
+        "name": "Vrhnika"
+      }
+    ],
+    "Podravska": [
+      {
+        "value": "64168",
+        "name": "Bresternica"
+      },
+      {
+        "value": "63087",
+        "name": "Bukovci"
+      },
+      {
+        "value": "63862",
+        "name": "Dogoše"
+      },
+      {
+        "value": "63398",
+        "name": "Dornava"
+      },
+      {
+        "value": "63466",
+        "name": "Fram"
+      },
+      {
+        "value": "64169",
+        "name": "Kamnica"
+      },
+      {
+        "value": "63178",
+        "name": "Kidričevo"
+      },
+      {
+        "value": "64253",
+        "name": "Lenart"
+      },
+      {
+        "value": "64064",
+        "name": "Limbuš"
+      },
+      {
+        "value": "63979",
+        "name": "Lovrenc na Pohorju"
+      },
+      {
+        "value": "64066",
+        "name": "Maribor"
+      },
+      {
+        "value": "63791",
+        "name": "Miklavž na Dravskem Polju"
+      },
+      {
+        "value": "63207",
+        "name": "Ormož"
+      },
+      {
+        "value": "64065",
+        "name": "Pekre"
+      },
+      {
+        "value": "64356",
+        "name": "Pesnica pri Mariboru"
+      },
+      {
+        "value": "63363",
+        "name": "Podvinci"
+      },
+      {
+        "value": "62529",
+        "name": "Poljčane"
+      },
+      {
+        "value": "63177",
+        "name": "Pragersko"
+      },
+      {
+        "value": "63277",
+        "name": "Ptuj"
+      },
+      {
+        "value": "63467",
+        "name": "Rače"
+      },
+      {
+        "value": "63580",
+        "name": "Radizel"
+      },
+      {
+        "value": "63790",
+        "name": "Razvanje"
+      },
+      {
+        "value": "63763",
+        "name": "Rogoza"
+      },
+      {
+        "value": "63980",
+        "name": "Ruše"
+      },
+      {
+        "value": "64859",
+        "name": "Šentilj"
+      },
+      {
+        "value": "63676",
+        "name": "Skoke"
+      },
+      {
+        "value": "63176",
+        "name": "Slovenska Bistrica"
+      },
+      {
+        "value": "63762",
+        "name": "Spodnje Hoče"
+      },
+      {
+        "value": "63206",
+        "name": "Spuhlja"
+      },
+      {
+        "value": "63057",
+        "name": "Stojnci"
+      }
+    ],
+    "Pomurska": [
+      {
+        "value": "64463",
+        "name": "Bakovci"
+      },
+      {
+        "value": "64374",
+        "name": "Beltinci"
+      },
+      {
+        "value": "64766",
+        "name": "Černelavci"
+      },
+      {
+        "value": "64171",
+        "name": "Črenšovci"
+      },
+      {
+        "value": "64668",
+        "name": "Dobrovnik"
+      },
+      {
+        "value": "64357",
+        "name": "Dokležovje"
+      },
+      {
+        "value": "64559",
+        "name": "Gančani"
+      },
+      {
+        "value": "64765",
+        "name": "Gornja Radgona"
+      },
+      {
+        "value": "64281",
+        "name": "Ižakovci"
+      },
+      {
+        "value": "64585",
+        "name": "Krog"
+      },
+      {
+        "value": "64094",
+        "name": "Lendava"
+      },
+      {
+        "value": "64558",
+        "name": "Lipovci"
+      },
+      {
+        "value": "63863",
+        "name": "Ljutomer"
+      },
+      {
+        "value": "64170",
+        "name": "Melinci"
+      },
+      {
+        "value": "64687",
+        "name": "Murska Sobota"
+      },
+      {
+        "value": "64282",
+        "name": "Odranci"
+      },
+      {
+        "value": "63952",
+        "name": "Petišovci"
+      },
+      {
+        "value": "64666",
+        "name": "Radenci"
+      },
+      {
+        "value": "64667",
+        "name": "Rakičan"
+      },
+      {
+        "value": "64560",
+        "name": "Turnišče"
+      },
+      {
+        "value": "64254",
+        "name": "Verzej"
+      }
+    ],
+    "Savinjska": [
+      {
+        "value": "62086",
+        "name": "Celje"
+      },
+      {
+        "value": "62195",
+        "name": "Gotovlje"
+      },
+      {
+        "value": "62067",
+        "name": "Kasaze"
+      },
+      {
+        "value": "61493",
+        "name": "Laško"
+      },
+      {
+        "value": "62087",
+        "name": "Ljubečna"
+      },
+      {
+        "value": "62864",
+        "name": "Lokovica"
+      },
+      {
+        "value": "62743",
+        "name": "Mozirje"
+      },
+      {
+        "value": "62384",
+        "name": "Nazarje"
+      },
+      {
+        "value": "63086",
+        "name": "Oplotnica"
+      },
+      {
+        "value": "62085",
+        "name": "Petrovče"
+      },
+      {
+        "value": "62385",
+        "name": "Polzela"
+      },
+      {
+        "value": "62084",
+        "name": "Prebold"
+      },
+      {
+        "value": "60972",
+        "name": "Radeče"
+      },
+      {
+        "value": "63085",
+        "name": "Ravne"
+      },
+      {
+        "value": "62088",
+        "name": "Rogaška Slatina"
+      },
+      {
+        "value": "62194",
+        "name": "Šempeter"
+      },
+      {
+        "value": "61967",
+        "name": "Šentjur"
+      },
+      {
+        "value": "63054",
+        "name": "Škale"
+      },
+      {
+        "value": "62744",
+        "name": "Slovenske Konjice"
+      },
+      {
+        "value": "63053",
+        "name": "Šoštanj"
+      },
+      {
+        "value": "61966",
+        "name": "Štore"
+      },
+      {
+        "value": "63175",
+        "name": "Topolšica"
+      },
+      {
+        "value": "62955",
+        "name": "Velenje"
+      },
+      {
+        "value": "63055",
+        "name": "Vitanje"
+      },
+      {
+        "value": "62408",
+        "name": "Vojnik"
+      },
+      {
+        "value": "61877",
+        "name": "Zabukovica"
+      },
+      {
+        "value": "62167",
+        "name": "Žalec"
+      },
+      {
+        "value": "63056",
+        "name": "Zreče"
+      }
+    ],
+    "Spodnjeposavska": [
+      {
+        "value": "60448",
+        "name": "Brestanica"
+      },
+      {
+        "value": "59846",
+        "name": "Brežice"
+      },
+      {
+        "value": "60344",
+        "name": "Krško"
+      },
+      {
+        "value": "60652",
+        "name": "Senovo"
+      },
+      {
+        "value": "60580",
+        "name": "Sevnica"
+      }
+    ],
+    "Zasavska": [
+      {
+        "value": "61492",
+        "name": "Hrastnik"
+      },
+      {
+        "value": "61490",
+        "name": "Izlake"
+      },
+      {
+        "value": "61491",
+        "name": "Trbovlje"
+      },
+      {
+        "value": "61403",
+        "name": "Zagorje ob Savi"
+      }
+    ]
+  },
+  "all_cities": [
+    "Ajdovščina",
+    "Ankaran",
+    "Bakovci",
+    "Beltinci",
+    "Bertoki",
+    "Bilje",
+    "Bistrica ob Tržiču",
+    "Bled",
+    "Borovnica",
+    "Branik",
+    "Brestanica",
+    "Bresternica",
+    "Brezovica pri Ljubljani",
+    "Brežice",
+    "Britof",
+    "Bukovci",
+    "Celje",
+    "Cerknica",
+    "Cerkno",
+    "Dekani",
+    "Deskle",
+    "Divača",
+    "Dob",
+    "Dobrova",
+    "Dobrovnik",
+    "Dogoše",
+    "Dokležovje",
+    "Domžale",
+    "Dornava",
+    "Dragomer",
+    "Dravograd",
+    "Fram",
+    "Gančani",
+    "Golnik",
+    "Gornja Radgona",
+    "Gotovlje",
+    "Grosuplje",
+    "Horjul",
+    "Hrastnik",
+    "Hrušica",
+    "Idrija",
+    "Ig",
+    "Ilirska Bistrica",
+    "Izlake",
+    "Izola",
+    "Ižakovci",
+    "Jagodje",
+    "Jesenice",
+    "Kamnica",
+    "Kamnik",
+    "Kanal",
+    "Kasaze",
+    "Kidričevo",
+    "Kobarid",
+    "Kokrica",
+    "Komenda",
+    "Koper",
+    "Koroška Bela",
+    "Kotlje",
+    "Kočevje",
+    "Kranj",
+    "Kranjska Gora",
+    "Križe",
+    "Krog",
+    "Kromberk",
+    "Kropa",
+    "Krško",
+    "Laško",
+    "Legen",
+    "Lenart",
+    "Lendava",
+    "Lesce",
+    "Limbuš",
+    "Lipovci",
+    "Litija",
+    "Ljubečna",
+    "Ljubljana",
+    "Ljutomer",
+    "Logatec",
+    "Lokavec",
+    "Lokovica",
+    "Lovrenc na Pohorju",
+    "Lucija",
+    "Maribor",
+    "Medvode",
+    "Mekinje",
+    "Melinci",
+    "Mengeš",
+    "Metlika",
+    "Mežica",
+    "Miklavž na Dravskem Polju",
+    "Miren",
+    "Mirna",
+    "Mislinja",
+    "Mojstrana",
+    "Moravče",
+    "Mozirje",
+    "Murska Sobota",
+    "Muta",
+    "Nazarje",
+    "Nova Gorica",
+    "Novo Mesto",
+    "Odranci",
+    "Oplotnica",
+    "Ormož",
+    "Pameče",
+    "Pekre",
+    "Pesnica pri Mariboru",
+    "Petišovci",
+    "Petrovče",
+    "Piran",
+    "Pivka",
+    "Pobegi",
+    "Podgorje",
+    "Podvinci",
+    "Poljčane",
+    "Polzela",
+    "Portorož",
+    "Postojna",
+    "Pragersko",
+    "Prebold",
+    "Preddvor",
+    "Predoslje",
+    "Prevalje",
+    "Prvačina",
+    "Ptuj",
+    "Radenci",
+    "Radeče",
+    "Radizel",
+    "Radlje ob Dravi",
+    "Radomlje",
+    "Radovljica",
+    "Rakek",
+    "Rakičan",
+    "Ravne",
+    "Razvanje",
+    "Rače",
+    "Renče",
+    "Ribnica",
+    "Rogaška Slatina",
+    "Rogoza",
+    "Rovte",
+    "Ruše",
+    "Senovo",
+    "Sevnica",
+    "Sežana",
+    "Skoke",
+    "Slovenj Gradec",
+    "Slovenska Bistrica",
+    "Slovenske Konjice",
+    "Slovenski Javornik",
+    "Solkan",
+    "Spodnja Idrija",
+    "Spodnje Hoče",
+    "Spuhlja",
+    "Stojnci",
+    "Straža",
+    "Tolmin",
+    "Topolšica",
+    "Trbovlje",
+    "Trebnje",
+    "Trzin",
+    "Tržič",
+    "Turnišče",
+    "Velenje",
+    "Verd",
+    "Verzej",
+    "Vipava",
+    "Vir",
+    "Visoko",
+    "Vitanje",
+    "Vnanje Gorice",
+    "Vodice",
+    "Vojnik",
+    "Vrhnika",
+    "Vrtojba",
+    "Vuhred",
+    "Vuzenica",
+    "Zabukovica",
+    "Zagorje ob Savi",
+    "Zreče",
+    "Černelavci",
+    "Črenšovci",
+    "Črna na Koroškem",
+    "Črnomelj",
+    "Šempas",
+    "Šempeter",
+    "Šentilj",
+    "Šentjur",
+    "Šenčur",
+    "Škale",
+    "Škofja Loka",
+    "Škofljica",
+    "Šmarca",
+    "Šoštanj",
+    "Štore",
+    "Žalec",
+    "Železniki",
+    "Žiri",
+    "Žužemberk"
+  ]
+}
