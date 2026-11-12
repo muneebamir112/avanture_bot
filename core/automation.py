@@ -509,12 +509,11 @@ class AutomationWorker:
 
     def _delete_existing_listing(self, page: Page) -> bool:
         """
-        Deletes any pre-existing listing on https://www.avanture.net/classifieds/manage
-        to free up the slot when reposting ads.
+        Deletes ALL pre-existing listings on https://www.avanture.net/classifieds/manage
+        in a continuous loop until 0 listings remain on the account.
         """
         if self.is_stopped:
             return False
-        self.log("Checking for previous listing on account to delete and repost...", "INFO")
 
         # Auto-accept any browser dialogs (confirm prompts)
         try:
@@ -522,197 +521,276 @@ class AutomationWorker:
         except Exception:
             pass
 
-        if "classifieds/manage" not in page.url.lower():
-            page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
-            self.sleep(1.5)
+        max_delete_attempts = 10
+        deleted_any = False
 
-        # Check if already 0 listings
-        body_text = page.locator("body").inner_text().lower() if page.url else ""
-        empty_indicators = [
-            "you have no listings yet",
-            "nimate še nobenih oglasov",
-            "nimate nobenih oglasov",
-            "trenutno nimate oglasov",
-            "ni aktivnih oglasov"
-        ]
-        has_listing_indicators = page.locator(
-            "a[href*='/classifieds/view/'], a[href*='/classifieds/edit/'], button:has-text('Uredi'), button:has-text('Edit'), a:has-text('Uredi'), a:has-text('Edit'), [data-pa-menu], [data-pm-menu], .pc-card"
-        ).count() > 0
+        for attempt in range(1, max_delete_attempts + 1):
+            if self.is_stopped:
+                return False
 
-        if any(ind in body_text for ind in empty_indicators) and not has_listing_indicators:
-            self.log("No existing listings found to remove. Slot is ready!", "INFO")
-            return True
+            if "classifieds/manage" not in page.url.lower():
+                page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
+                self.sleep(1.5)
 
-        self.log("Previous listing detected on account. Auto-deleting to free up slot...", "WARNING")
-        confirmed = False
+            # Evaluate remaining listings on classifieds/manage
+            info = page.evaluate('''() => {
+                const bodyText = (document.body.innerText || '').toLowerCase();
+                const emptyIndicators = [
+                    "you have no listings yet",
+                    "didn't post any listings",
+                    "nimate še nobenih oglasov",
+                    "nimate nobenih oglasov",
+                    "trenutno nimate oglasov",
+                    "ni aktivnih oglasov",
+                    "ni oglasov"
+                ];
+                const hasEmptyMsg = emptyIndicators.some(ind => bodyText.includes(ind));
 
-        # METHOD 1: Look for the 3-dot options menu on the listing card
-        menu_selectors = [
-            ".mdi-dots-horizontal",
-            ".mdi-dots-vertical",
-            "button:has(.mdi-dots-horizontal)",
-            "button:has(.mdi-dots-vertical)",
-            "button:has-text('⋯')",
-            "a:has-text('⋯')",
-            "button:has-text('...')",
-            "a:has-text('...')",
-            "[data-pa-menu]",
-            "[data-pm-menu]",
-            ".pa-menu__btn",
-            ".pm-menu__btn",
-            "button[title*='More' i]",
-            "button[title*='Več' i]"
-        ]
+                // Each listing card on Avanture has a 3-dots menu button with data-pa-menu
+                const menuBtns = Array.from(document.querySelectorAll('[data-pa-menu]'));
+                const viewLinks = Array.from(document.querySelectorAll("a[href*='/classifieds/view/']"));
+                const editCardBtns = Array.from(document.querySelectorAll("a[href*='/classifieds/edit/']"))
+                    .filter(a => !a.getAttribute('href').endsWith('/classifieds/edit'));
 
-        for m_sel in menu_selectors:
-            try:
-                loc = page.locator(m_sel).first
-                if loc.is_visible(timeout=600):
-                    self.log("Opening listing options menu (⋯)...", "INFO")
-                    loc.click()
-                    self.sleep(0.8)
+                // Calculate genuine active listing count
+                let count = Math.max(menuBtns.length, viewLinks.length, editCardBtns.length);
+                if (hasEmptyMsg && count === 0) {
+                    count = 0;
+                }
+
+                const firstViewHref = viewLinks.length > 0 ? viewLinks[0].getAttribute('href') : null;
+
+                return {
+                    count: count,
+                    hasEmptyMsg: hasEmptyMsg,
+                    firstViewHref: firstViewHref
+                };
+            }''')
+
+            count = info.get("count", 0)
+
+            if count == 0:
+                if deleted_any:
+                    self.log("✔ All previous listings successfully deleted! 0 active listings remain.", "SUCCESS")
+                else:
+                    self.log("No existing listings found to remove. Slot is ready!", "INFO")
+                return True
+
+            self.log(f"⚠️ Detected {count} existing listing(s) on account. Deleting listing #{attempt}...", "WARNING")
+            confirmed = False
+
+            # -------------------------------------------------------------
+            # STEP 1: Open 3-dot dropdown menu on the first listing card
+            # -------------------------------------------------------------
+            opened_menu = page.evaluate('''() => {
+                const btn = document.querySelector('[data-pa-menu]');
+                if (btn) {
+                    btn.scrollIntoView({ block: 'center' });
+                    btn.click();
+                    const wrap = btn.closest('.pa-menu') || btn.parentElement;
+                    if (wrap) {
+                        wrap.classList.add('is-open');
+                    }
+                    return true;
+                }
+                return false;
+            }''')
+
+            if not opened_menu:
+                # Try Playwright locator for 3-dots
+                for m_sel in ["[data-pa-menu]", "button:has-text('⋯')", "button:has-text('...')", ".pa-menu button"]:
+                    try:
+                        m_loc = page.locator(m_sel).first
+                        if m_loc.is_visible(timeout=500):
+                            m_loc.click()
+                            opened_menu = True
+                            self.sleep(0.5)
+                            break
+                    except Exception:
+                        pass
+
+            self.sleep(0.8)
+
+            # -------------------------------------------------------------
+            # STEP 2: Click the 'Delete listing' / 'Izbriši oglas' action
+            # -------------------------------------------------------------
+            clicked_delete = page.evaluate('''() => {
+                const candidates = Array.from(document.querySelectorAll('.pa-menu.is-open a, .pa-menu a, [data-pa-menu] ~ * a, a, button'));
+                for (const el of candidates) {
+                    const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                    const href = (el.getAttribute('href') || '').toLowerCase();
+                    const onclick = (el.getAttribute('onclick') || '').toLowerCase();
+                    if (
+                        txt.includes('delete listing') ||
+                        txt.includes('izbriši oglas') ||
+                        txt.includes('izbrisi oglas') ||
+                        txt === 'delete' ||
+                        txt === 'izbriši' ||
+                        txt === 'izbrisi' ||
+                        (href.includes('delete') && !href.includes('account')) ||
+                        onclick.includes('delete') ||
+                        onclick.includes('ajaxobjectconfirmdelete')
+                    ) {
+                        el.scrollIntoView({ block: 'center' });
+                        el.click();
+                        return true;
+                    }
+                }
+                return false;
+            }''')
+
+            if not clicked_delete:
+                for del_sel in [
+                    "a:has-text('Delete listing'):visible",
+                    "button:has-text('Delete listing'):visible",
+                    "a:has-text('Izbriši oglas'):visible",
+                    "button:has-text('Izbriši oglas'):visible",
+                    "a:has-text('Izbriši'):visible",
+                    "a:has-text('Delete'):visible",
+                    ".pa-menu.is-open a",
+                    "a[href*='delete']:visible"
+                ]:
+                    try:
+                        d_loc = page.locator(del_sel).first
+                        if d_loc.is_visible(timeout=400):
+                            d_loc.click()
+                            clicked_delete = True
+                            self.sleep(0.8)
+                            break
+                    except Exception:
+                        pass
+
+            # -------------------------------------------------------------
+            # STEP 3: Confirm Modal ("Are you sure you want to delete?")
+            # Button is 'Continue' / 'Nadaljuj'
+            # -------------------------------------------------------------
+            self.sleep(0.8)
+            for _ in range(10):
+                if self.is_stopped:
+                    return False
+                for c_sel in [
+                    "button:has-text('Continue'):visible",
+                    "button:has-text('Nadaljuj'):visible",
+                    "a:has-text('Continue'):visible",
+                    "a:has-text('Nadaljuj'):visible",
+                    "[role='button']:has-text('Continue'):visible",
+                    ".modal button:has-text('Continue'):visible",
+                    ".modal button:has-text('Nadaljuj'):visible",
+                    "button:has-text('Potrdi'):visible",
+                    "button:has-text('Delete'):visible",
+                    "button.btn-danger:visible"
+                ]:
+                    try:
+                        c_loc = page.locator(c_sel).first
+                        if c_loc.is_visible(timeout=300):
+                            self.log(f"Confirming deletion popup ({c_sel})...", "INFO")
+                            c_loc.click()
+                            confirmed = True
+                            self.sleep(2.0)
+                            break
+                    except Exception:
+                        pass
+                if confirmed:
                     break
-            except Exception:
-                continue
 
-        # Candidate selectors for the Delete action in the dropdown menu
-        del_selectors = [
-            "a:has-text('Delete listing'):visible",
-            "button:has-text('Delete listing'):visible",
-            "*:has-text('Delete listing'):visible",
-            "a:has-text('Izbriši oglas'):visible",
-            "button:has-text('Izbriši oglas'):visible",
-            "*:has-text('Izbriši oglas'):visible",
-            ".pa-menu.is-open a:has-text('Delete')",
-            ".pa-menu.is-open button:has-text('Delete')",
-            ".pm-menu.is-open a:has-text('Delete')",
-            ".pm-menu.is-open button:has-text('Delete')",
-            "a:has-text('Delete'):visible",
-            "button:has-text('Delete'):visible",
-            "a:has-text('Izbriši'):visible",
-            "button:has-text('Izbriši'):visible",
-            "a[href*='delete']:visible"
-        ]
-
-        for sel in del_selectors:
-            try:
-                loc = page.locator(sel).first
-                if loc.is_visible(timeout=600):
-                    self.log(f"Triggering deletion ({sel})...", "INFO")
-                    loc.click()
-                    self.sleep(1.2)
-                    break
-            except Exception:
-                continue
-
-        # Confirmation modal handler (handles "Continue", "Nadaljuj", etc.)
-        confirm_selectors = [
-            "button:has-text('Continue'):visible",
-            "a:has-text('Continue'):visible",
-            "[role='button']:has-text('Continue'):visible",
-            ".modal button:has-text('Continue'):visible",
-            "[role='dialog'] button:has-text('Continue'):visible",
-            "button:has-text('Nadaljuj'):visible",
-            "a:has-text('Nadaljuj'):visible",
-            ".modal button:has-text('Nadaljuj'):visible",
-            "button:has-text('Delete'):visible",
-            "button:has-text('Izbriši'):visible",
-            "button:has-text('Potrdi'):visible",
-            "button:has-text('Yes'):visible",
-            "button.btn-danger:visible",
-            ".swal2-confirm:visible",
-            ".pu-btn-danger:visible"
-        ]
-
-        for _ in range(8):
-            for c_sel in confirm_selectors:
+                # JS click fallback for modal
                 try:
-                    c_loc = page.locator(c_sel).first
-                    if c_loc.is_visible(timeout=300):
-                        self.log(f"Confirming deletion modal ({c_sel})...", "INFO")
-                        c_loc.click()
+                    js_confirmed = page.evaluate('''() => {
+                        const btns = Array.from(document.querySelectorAll('button, a, [role="button"], input[type="button"], input[type="submit"]'));
+                        for (const b of btns) {
+                            const txt = (b.innerText || b.textContent || b.value || '').trim().toLowerCase();
+                            if (txt === 'continue' || txt === 'nadaljuj' || txt === 'potrdi' || txt === 'yes') {
+                                b.click();
+                                return true;
+                            }
+                        }
+                        return false;
+                    }''')
+                    if js_confirmed:
+                        self.log("Confirmed deletion popup via JS ('Continue').", "INFO")
                         confirmed = True
-                        self.sleep(1.5)
+                        self.sleep(2.0)
                         break
                 except Exception:
-                    continue
-            if confirmed:
-                break
-            self.sleep(0.3)
+                    pass
 
-        # Robust JS fallback if modal is still open
-        if not confirmed:
-            try:
-                clicked_js = page.evaluate('''() => {
-                    const candidates = Array.from(document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"], div, span'));
+                self.sleep(0.3)
+
+            # -------------------------------------------------------------
+            # STEP 4: Fallback - Open listing view page directly and delete
+            # -------------------------------------------------------------
+            if not confirmed and info.get("firstViewHref"):
+                view_href = info.get("firstViewHref")
+                full_view_url = view_href if view_href.startswith("http") else f"https://www.avanture.net{view_href}"
+                self.log(f"Opening listing view page to delete directly: {full_view_url}...", "INFO")
+                page.goto(full_view_url, wait_until="domcontentloaded")
+                self.sleep(2.0)
+
+                # Click Delete listing on view page
+                page.evaluate('''() => {
+                    const candidates = Array.from(document.querySelectorAll('a, button, [role="button"]'));
                     for (const el of candidates) {
-                        const text = (el.innerText || el.textContent || el.value || '').trim();
-                        if ((text === 'Continue' || text === 'Nadaljuj') && el.offsetParent !== null) {
+                        const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                        const href = (el.getAttribute('href') || '').toLowerCase();
+                        if (
+                            txt.includes('delete listing') ||
+                            txt.includes('izbriši oglas') ||
+                            txt.includes('izbrisi oglas') ||
+                            (txt.includes('delete') && !txt.includes('account')) ||
+                            (txt.includes('izbriši') && !txt.includes('račun')) ||
+                            href.includes('delete')
+                        ) {
                             el.click();
                             return true;
                         }
                     }
                     return false;
                 }''')
-                if clicked_js:
-                    self.log("Confirmed deletion modal via JS fallback ('Continue').", "INFO")
-                    confirmed = True
-                    self.sleep(1.5)
-            except Exception:
-                pass
+                self.sleep(1.0)
 
-        # METHOD 2: If not confirmed from card menu, open the listing view page and delete there!
-        if not confirmed:
-            self.log("Opening listing view page to execute deletion directly...", "INFO")
-            view_link = page.locator("a[href*='/classifieds/view/']:visible, a[href*='/classifieds/edit/']:visible").first
-            if view_link.is_visible(timeout=2000):
-                view_link.click()
-                self.sleep(2.0)
-
-                for sel in del_selectors:
-                    try:
-                        loc = page.locator(sel).first
-                        if loc.is_visible(timeout=1000):
-                            self.log(f"Found delete action on listing view ({sel}). Clicking...", "INFO")
-                            loc.click()
-                            self.sleep(1.2)
-                            break
-                    except Exception:
-                        continue
-
-                for c_sel in confirm_selectors:
+                # Confirm modal on view page
+                for c_sel in [
+                    "button:has-text('Continue'):visible",
+                    "button:has-text('Nadaljuj'):visible",
+                    "button:has-text('Delete'):visible",
+                    "button:has-text('Izbriši'):visible",
+                    "button.btn-danger:visible"
+                ]:
                     try:
                         c_loc = page.locator(c_sel).first
-                        if c_loc.is_visible(timeout=1000):
-                            self.log(f"Confirming deletion modal on view page ({c_sel})...", "INFO")
+                        if c_loc.is_visible(timeout=600):
                             c_loc.click()
-                            self.sleep(1.5)
                             confirmed = True
+                            self.sleep(2.0)
                             break
                     except Exception:
-                        continue
+                        pass
 
                 if not confirmed:
                     try:
-                        page.evaluate('''() => {
-                            const candidates = Array.from(document.querySelectorAll('button, a, [role="button"]'));
-                            for (const el of candidates) {
-                                const text = (el.innerText || el.textContent || '').trim();
-                                if ((text === 'Continue' || text === 'Nadaljuj') && el.offsetParent !== null) {
-                                    el.click();
+                        js_c = page.evaluate('''() => {
+                            const btns = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+                            for (const b of btns) {
+                                const txt = (b.innerText || b.textContent || b.value || '').trim().toLowerCase();
+                                if (txt === 'continue' || txt === 'nadaljuj' || txt === 'potrdi' || txt === 'yes') {
+                                    b.click();
                                     return true;
                                 }
                             }
                             return false;
                         }''')
-                        self.sleep(1.5)
+                        if js_c:
+                            confirmed = True
+                            self.sleep(2.0)
                     except Exception:
                         pass
 
-        # Wait for page to refresh and verify slot is empty
-        page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
-        self.sleep(1.5)
-        self.log("Previous listing removed successfully. Slot is ready to publish new listing!", "SUCCESS")
+            deleted_any = True
+            self.sleep(1.5)
+            page.goto("https://www.avanture.net/classifieds/manage", wait_until="domcontentloaded")
+            self.sleep(1.5)
+
+        # Final check
         return True
 
     def _open_new_listing_form(self, page: Page) -> tuple[bool, str]:
