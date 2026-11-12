@@ -1,4 +1,5 @@
 import os
+import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -6,7 +7,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import pandas as pd
 
-from config import DEFAULT_TARGET_URL, SESSION_FILE, DATA_DIR, AVANTURE_SLOVENIA_LOCATIONS
+from config import DEFAULT_TARGET_URL, SESSION_FILE, DATA_DIR, IMAGES_DIR, AVANTURE_SLOVENIA_LOCATIONS
 from core.validator import ListingValidator
 from core.auth import AuthManager
 from core.automation import AutomationWorker
@@ -1440,9 +1441,18 @@ class DashboardView(ctk.CTkFrame):
         self.form_reg.insert(0, acc.get("registration_number", ""))
 
         img_path = acc.get("image_path", "")
+        # Fallback to local cached image in data/images/ if original file path was moved
+        if img_path and not Path(img_path).exists():
+            candidate = IMAGES_DIR / Path(img_path).name
+            if candidate.exists():
+                img_path = str(candidate.resolve())
+                acc["image_path"] = img_path
+
         if img_path and Path(img_path).exists():
+            self._current_attached_image = img_path
             self.lbl_pic.configure(text=f"Attached: {Path(img_path).name}", text_color="#38bdf8")
         else:
+            self._current_attached_image = ""
             self.lbl_pic.configure(text="No picture attached (Optional)", text_color="#64748b")
 
         self._on_title_key()
@@ -1644,6 +1654,8 @@ class DashboardView(ctk.CTkFrame):
         acc["state"] = self.form_state.get()
         acc["city"] = self.form_city.get().strip()
         acc["registration_number"] = self.form_reg.get().strip()
+        if hasattr(self, "_current_attached_image") and self._current_attached_image:
+            acc["image_path"] = self._current_attached_image
 
     def _schedule_debounced_save(self):
         """Saves immediately in memory, then delays disk write until user finishes typing."""
@@ -1686,38 +1698,45 @@ class DashboardView(ctk.CTkFrame):
             self._refresh_profile_dropdown()
 
     def _on_browse_profile_image(self):
-        path = filedialog.askopenfilename(
-            title="Select Listing Picture",
-            filetypes=[
-                ("Image Files", "*.jpg *.jpeg *.png *.webp *.bmp *.gif"),
-                ("All Files", "*.*")
-            ]
-        )
-        if not path:
-            return
-
-        # Ensure image is copied locally to data/images/ for permanent portability
-        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-        filename = Path(path).name
-        target_file = IMAGES_DIR / filename
         try:
-            shutil.copy2(path, target_file)
-            saved_path = str(target_file.resolve())
-        except Exception:
-            saved_path = path
+            path = filedialog.askopenfilename(
+                title="Select Listing Picture",
+                filetypes=[
+                    ("Image Files", "*.jpg *.jpeg *.png *.webp *.bmp *.gif"),
+                    ("All Files", "*.*")
+                ]
+            )
+            if not path:
+                return
 
-        if 0 <= self.current_profile_index < len(self.profiles_list):
-            self.profiles_list[self.current_profile_index]["image_path"] = saved_path
-            self.lbl_pic.configure(text=f"Attached: {filename}", text_color="#38bdf8")
-            self._save_current_account_form(silent=True)
-            AvantureCredentialsStore.save(self.profiles_list)
-            self.log(f"Image attached and cached locally: {filename}", "SUCCESS")
+            # Ensure image is copied locally to data/images/ for permanent portability
+            IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+            filename = Path(path).name
+            target_file = IMAGES_DIR / filename
+            try:
+                shutil.copy2(path, target_file)
+                saved_path = str(target_file.resolve())
+            except Exception:
+                saved_path = str(Path(path).resolve())
+
+            self._current_attached_image = saved_path
+            if 0 <= self.current_profile_index < len(self.profiles_list):
+                self.profiles_list[self.current_profile_index]["image_path"] = saved_path
+                self.lbl_pic.configure(text=f"Attached: {filename}", text_color="#38bdf8")
+                self._save_current_account_form(silent=True)
+                AvantureCredentialsStore.save(self.profiles_list)
+                self.log(f"Image attached and cached locally: {filename}", "SUCCESS")
+        except Exception as ex:
+            self.log(f"Error attaching image: {ex}", "ERROR")
+            messagebox.showerror("Image Error", f"Could not attach image: {ex}")
 
     def _on_clear_profile_image(self):
+        self._current_attached_image = ""
         if 0 <= self.current_profile_index < len(self.profiles_list):
             self.profiles_list[self.current_profile_index]["image_path"] = ""
             self.lbl_pic.configure(text="No picture attached (Optional)", text_color="#64748b")
             self._save_current_account_form(silent=True)
+            AvantureCredentialsStore.save(self.profiles_list)
             self.log("Profile image cleared.", "INFO")
 
     # ==================================================================
